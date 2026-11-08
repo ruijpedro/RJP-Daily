@@ -1,86 +1,47 @@
 name: RJP Daily — Publicar atualização OTA
-# OTA só publica o bundle web. Plugins nativos e permissões requerem nova APK.
+# Publica automaticamente apenas quando package.json muda na branch main.
+# Para mudanças nativas, compilar e instalar uma nova APK antes de atualizar a baseline.
 on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
   workflow_dispatch:
     inputs:
       min_native_version:
-        description: 'APK mínima compatível (ex.: 1.1.5)'
+        description: 'APK mínima compatível (base atual: 1.1.5)'
         required: true
         default: '1.1.5'
       notes:
-        description: 'Resumo das alterações (sem dados pessoais)'
+        description: 'Resumo das alterações sem dados pessoais'
         required: false
-        default: 'Correções e melhorias da RJP Daily'
+        default: 'Melhorias e correções da RJP Daily'
 permissions:
   contents: write
+concurrency:
+  group: rjp-daily-ota-release
+  cancel-in-progress: false
 jobs:
   publish:
-    name: Validar e publicar ZIP OTA no GitHub Releases
+    name: Testar e publicar OTA compatível
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validar acesso público e versões
-        env:
-          MIN_NATIVE: ${{ inputs.min_native_version }}
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          VERSION=$(node -p 'require("./package.json").version')
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Versão inválida no package.json'; exit 1; }
-          [[ "$MIN_NATIVE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Versão nativa mínima inválida'; exit 1; }
-          echo "OTA_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "OTA_TAG=ota-v$VERSION" >> "$GITHUB_ENV"
-          PUBLIC=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.private')
-          [[ "$PUBLIC" == 'false' ]] || { echo 'GitHub OTA necessita de repositório público, sem autenticação na app.'; exit 1; }
-          if gh release view "ota-v${VERSION}" >/dev/null 2>&1; then
-            echo 'Esta versão OTA já existe; incrementa a versão antes de publicar.'; exit 1
-          fi
-      - name: Instalar, testar, compilar
-        run: |
-          npm install --no-audit --no-fund
-          npm test
-          npm run build
-      - name: Criar ZIP com Capgo CLI e validar formato
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx --yes @capgo/cli@latest bundle zip pt.rjp.daily --path ./dist --bundle "$OTA_VERSION" --name rjp-daily-web --json
-          CANDIDATE=$(find . -maxdepth 5 -type f -name '*rjp-daily-web*.zip' ! -path './node_modules/*' | head -n 1)
-          [[ -n "$CANDIDATE" && -f "$CANDIDATE" ]] || { echo 'CLI não criou ZIP OTA'; exit 1; }
-          mkdir -p ota-release
-          cp "$CANDIDATE" ota-release/rjp-daily-web.zip
-          unzip -Z1 ota-release/rjp-daily-web.zip | grep -qx 'index.html' || { echo 'ZIP OTA sem index.html na raiz'; exit 1; }
-          SHA=$(sha256sum ota-release/rjp-daily-web.zip | awk '{print $1}')
-          echo "OTA_SHA256=$SHA" >> "$GITHUB_ENV"
-          echo "ZIP SHA256: $SHA"
-      - name: Criar GitHub Release OTA
+      - name: Validar compatibilidade, testar, compilar e publicar
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          MIN_NATIVE: ${{ inputs.min_native_version }}
-          RELEASE_NOTES: ${{ inputs.notes }}
-        run: |
-          set -euo pipefail
-          cat > ota-release/notes.txt <<EORELEASE
-          RJP Daily — Atualização OTA $OTA_VERSION
-
-          APP_ID: pt.rjp.daily
-          MIN_NATIVE_VERSION: $MIN_NATIVE
-          SHA256: $OTA_SHA256
-
-          $RELEASE_NOTES
-
-          Apenas HTML/CSS/JavaScript; não altera plugins ou permissões nativas.
-          EORELEASE
-          gh release create "$OTA_TAG" ota-release/rjp-daily-web.zip \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "RJP Daily OTA $OTA_VERSION" --notes-file ota-release/notes.txt --latest
+          RJP_MIN_NATIVE: ${{ inputs.min_native_version || '1.1.5' }}
+          RJP_RELEASE_NOTES: ${{ inputs.notes || 'Melhorias e correções da RJP Daily' }}
+        run: bash scripts/publish-ota.sh
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: RJP-Daily-OTA-${{ env.OTA_VERSION }}
+          name: RJP-Daily-OTA-${{ github.run_number }}
           path: ota-release/rjp-daily-web.zip
-          if-no-files-found: error
+          if-no-files-found: ignore
