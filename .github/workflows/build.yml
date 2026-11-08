@@ -38,7 +38,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
+      # O ubuntu-latest já dispõe do Android SDK. Evita a instalação
+      # do pacote obsoleto "tools" pela action setup-android@v3.
+      - name: Preparar Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-}"
+          sdkmanager --version
+          sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Instalar dependências
         run: npm install --no-audit --no-fund
       - name: Testes
