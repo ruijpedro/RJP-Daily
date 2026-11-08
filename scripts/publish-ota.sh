@@ -40,7 +40,7 @@ mkdir -p ota-release
 # O plugin Capgo aceita um ZIP normal com index.html na raiz.
 # Evita CLI de terceiros em versão flutuante e não requer API key.
 (cd dist && zip -q -r -X ../ota-release/"$ASSET" .)
-unzip -Z1 ota-release/"$ASSET" | grep -Fxq 'index.html' || {
+unzip -Z1 ota-release/"$ASSET" | grep -Fx 'index.html' >/dev/null || {
   echo "::error::ZIP OTA inválido: index.html não está na raiz."; exit 1;
 }
 SHA="$(sha256sum ota-release/"$ASSET" | awk '{print $1}')"
