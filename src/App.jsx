@@ -87,16 +87,31 @@ function App(){
  const webDelivered=useRef(new Set());
  const [clock,setClock]=useState(()=>new Date());
  const [otaStatus,setOtaStatus]=useState({type:'idle',message:'Verificação automática ao abrir a app.'});
+ const lastOtaNotice=useRef('');
 
  const notify=(s)=>{setToast(s);};
  useEffect(()=>{
   let mounted=true;
-  const status=s=>{if(mounted)setOtaStatus(s)};
+  const seen=localStorage.getItem('rjp-daily-last-opened-version');
+  if(hasAndroidOta() && seen && seen!==APP_VERSION){
+   setToast('RJP Daily atualizada para a versão '+APP_VERSION+'.');
+  }
+  if(hasAndroidOta())localStorage.setItem('rjp-daily-last-opened-version',APP_VERSION);
+  const status=s=>{
+   if(!mounted)return;
+   setOtaStatus(s);
+   if(s.type==='ready' && s.version && lastOtaNotice.current!==s.version){
+    lastOtaNotice.current=s.version;
+    setToast('Atualização '+s.version+' descarregada. Será aplicada ao passar para segundo plano ou reabrir a app.');
+   }
+  };
   void checkForOta({onStatus:status});
   const timer=setInterval(()=>{void checkForOta({onStatus:status})},30*60*1000);
+  const online=()=>{if(hasAndroidOta())void checkForOta({force:true,onStatus:status})};
+  window.addEventListener('online',online);
   let listener;
   if(hasAndroidOta())void CapacitorApp.addListener('resume',()=>{void checkForOta({onStatus:status})}).then(h=>{if(mounted)listener=h;else void h.remove()}).catch(()=>{});
-  return ()=>{mounted=false;clearInterval(timer);if(listener)void listener.remove()};
+  return ()=>{mounted=false;clearInterval(timer);window.removeEventListener('online',online);if(listener)void listener.remove()};
  },[]);
  useEffect(()=>{saveItems(items);},[items]);
  useEffect(()=>{saveIP(ipData);},[ipData]);
