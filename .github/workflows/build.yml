@@ -1,0 +1,90 @@
+name: RJP Daily — WebApp e APK Android
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Testar parser PT-PT
+        run: npm test
+      - name: Compilar WebApp
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RJP-Daily-WebApp
+          path: dist/
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Testes
+        run: npm test
+      - name: Gerar projeto Android e aplicar permissões
+        run: npm run android:prepare
+      - name: Preparar assinatura estável (quando configurada)
+        env:
+          RJP_DAILY_KEYSTORE_B64: ${{ secrets.RJP_DAILY_KEYSTORE_B64 }}
+          RJP_DAILY_KEYSTORE_PASSWORD: ${{ secrets.RJP_DAILY_KEYSTORE_PASSWORD }}
+          RJP_DAILY_KEY_ALIAS: ${{ secrets.RJP_DAILY_KEY_ALIAS }}
+          RJP_DAILY_KEY_PASSWORD: ${{ secrets.RJP_DAILY_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${RJP_DAILY_KEYSTORE_B64:-}" && -n "${RJP_DAILY_KEYSTORE_PASSWORD:-}" && -n "${RJP_DAILY_KEY_ALIAS:-}" && -n "${RJP_DAILY_KEY_PASSWORD:-}" ]]; then
+            echo "$RJP_DAILY_KEYSTORE_B64" | base64 --decode > "$GITHUB_WORKSPACE/android/app/rjp-release.jks"
+            echo "RJP_DAILY_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/rjp-release.jks" >> "$GITHUB_ENV"
+            echo "RJP_DAILY_KEYSTORE_PASSWORD=$RJP_DAILY_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "RJP_DAILY_KEY_ALIAS=$RJP_DAILY_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "RJP_DAILY_KEY_PASSWORD=$RJP_DAILY_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "RJP_BUILD_RELEASE=1" >> "$GITHUB_ENV"
+          else
+            echo 'Sem secrets de assinatura: APK DEBUG de testes (sem garantia de atualizações por cima).'
+            echo 'RJP_BUILD_RELEASE=0' >> "$GITHUB_ENV"
+          fi
+      - name: Compilar APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd android
+          chmod +x gradlew
+          if [[ "$RJP_BUILD_RELEASE" == "1" ]]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+      - name: SHA-1 da assinatura (para configurar Google Cloud)
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=$(find android/app/build/outputs/apk -name '*.apk' -type f | head -n 1)
+          echo "APK: $APK"
+          keytool -printcert -jarfile "$APK" | grep -E 'SHA1:|SHA256:|Owner:' || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RJP-Daily-Android-APK
+          path: android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
