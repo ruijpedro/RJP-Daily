@@ -1,0 +1,30 @@
+{
+  "name": "RJP Daily — Agenda, Voz e IP_RJP",
+  "short_name": "RJP Daily",
+  "description": "Agenda, lembretes e deslocações profissionais",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F7FF",
+  "theme_color": "#0952C7",
+  "lang": "pt-PT",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

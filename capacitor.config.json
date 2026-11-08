@@ -1,0 +1,29 @@
+{
+  "appId": "pt.rjp.daily",
+  "appName": "RJP Daily",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_rjp",
+      "iconColor": "#0E8574"
+    },
+    "SocialLogin": {
+      "providers": {
+        "google": true,
+        "apple": false,
+        "facebook": false
+      }
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "statsUrl": "",
+      "channelUrl": "",
+      "appReadyTimeout": 15000,
+      "resetWhenUpdate": true,
+      "autoDeleteFailed": true
+    }
+  }
+}
