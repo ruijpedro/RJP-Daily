@@ -44,9 +44,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "ANDROID_HOME=${ANDROID_HOME:-}"
-          sdkmanager --version
-          sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER" || SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          test -x "$SDKMANAGER" || { echo "sdkmanager não encontrado"; exit 1; }
+          echo "Android SDK: $SDK_ROOT"
+          "$SDKMANAGER" --version
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Instalar dependências
         run: npm install --no-audit --no-fund
       - name: Testes
