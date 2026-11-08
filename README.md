@@ -1,4 +1,4 @@
-# RJP Daily v1.1.5 — Agenda, Voz, Ícone RJP e Gestão Profissional IP_RJP
+# RJP Daily v1.1.6 — Agenda, Voz, Ícone RJP, Gestão IP e OTA automática
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -106,27 +106,30 @@ npm run android:prepare
 
 Origem dos requisitos: repositório [IP_RJP](https://github.com/ruijpedro/IP_RJP), app profissional criada anteriormente para as deslocações e prevenções da IP.
 
-## Atualização OTA automática — novidade v1.1.5
+## Atualizações OTA automáticas — melhorias v1.1.6
 
-**Atenção:** o suporte OTA está integrado na fonte mas **ainda não foi testado numa APK física**. Não há atualização publicada enquanto não criares o repositório, compilares a APK inicial e publicares a primeira release. Não afirma instalar APKs inteiras sem intervenção: só substitui os **recursos web** (HTML/CSS/JavaScript) compatíveis com o binário já instalado.
+**Importante:** a APK v1.1.5 já inclui o motor de atualização OTA. A v1.1.6 é a primeira versão preparada para publicação automática via GitHub Actions. A atualização OTA ainda precisa de ser confirmada num telemóvel real. A OTA substitui apenas os **recursos web** (HTML/CSS/JavaScript) compatíveis com a APK instalada; não instala um novo binário Android.
 
 ### Instalação inicial
 
-1. Cria **`ruijpedro/RJP-Daily` como repositório público** (o código não pode conter dados pessoais, passwords, tokens ou backups da IP). Se escolheres outro repositório, altera `VITE_RJP_OTA_REPO` no build Android; o nome é gravado no bundle.
-2. Carrega esta versão `1.1.5`, incluindo as pastas `.github`, `src`, `scripts`, `assets`, `tests` e os ficheiros de raiz.
-3. Executa **RJP Daily — WebApp e APK Android** no GitHub Actions. Instala a APK **v1.1.5** assinada com a mesma chave da v1.1.4, se esta já estiver instalada. Se ainda não houver chave permanente, configura os secrets documentados acima antes de distribuir a APK.
+1. O repositório público é **`ruijpedro/RJP-Daily`**. O código não pode conter dados pessoais, passwords, tokens ou backups da IP.
+2. Mantém a APK base `1.1.5` instalada para receber a atualização por OTA. Se ainda não estiver instalada, podes gerá-la no workflow de compilação Android.
+3. Para novas APKs nativas, usa **RJP Daily — WebApp e APK Android** no GitHub Actions, com assinatura estável. Para a atualização `1.1.6` basta o ZIP OTA da release; não é preciso reinstalar a APK base se o motor OTA estiver funcional.
 4. Nas **Definições → Atualização OTA**, poderás consultar o estado ou carregar em **Verificar atualização**. A verificação automática ocorre ao iniciar a app, quando regressa do segundo plano e, enquanto está aberta, aproximadamente de 30 em 30 minutos.
 
 ### Publicar uma atualização futura sem nova APK
 
 1. Altera apenas ficheiros da parte web. **Não é permitido distribuir via OTA** uma mudança que introduza/remova plugins nativos, permissões Android ou altere o `appId`. Essas mudanças requerem nova APK assinada.
-2. Aumenta a versão de `package.json` (por exemplo `1.1.6`), faz commit e push.
-3. Em **Actions → RJP Daily — Publicar atualização OTA → Run workflow**, indica a versão mínima de APK, por defeito `1.1.5`, e descreve as melhorias.
-4. O workflow testa, compila, cria o ZIP com a CLI oficial do Capacitor Updater, calcula SHA-256 e publica uma release `ota-v1.1.6` com o ficheiro `rjp-daily-web.zip`. Rejeita uma versão já existente, para não substituir silenciosamente atualizações que os utilizadores já descarregaram.
-5. A APK verifica o GitHub Releases público, seleciona a versão mais recente compatível, valida o checksum e descarrega o bundle; a ativação fica **preparada para o próximo fecho/reabertura**, sem interromper a introdução de notas ou deslocações.
+2. Aumenta a versão em `package.json` (por exemplo, de `1.1.6` para `1.1.7`) e faz commit/push para `main`: **o GitHub Actions lança automaticamente a publicação OTA**.
+3. Também podes usar **Actions → RJP Daily — Publicar atualização OTA → Run workflow** para uma publicação manual e acrescentar notas.
+4. Antes da publicação, o workflow compara plugins, configuração Capacitor e script de preparação Android com a **baseline nativa 1.1.5**. Se houver alterações incompatíveis, bloqueia a OTA e exige uma nova APK. Depois executa os testes, compila a WebApp, cria um ZIP com `index.html` na raiz, calcula SHA-256 e publica `ota-vX.Y.Z` no GitHub Releases. Não republica versões existentes.
+5. A APK verifica o GitHub Releases público, escolhe a versão mais recente compatível e descarrega o bundle. Depois de preparado, o bundle é aplicado ao passar a app para segundo plano ou voltar a abrir, sem interromper o preenchimento de notas ou deslocações. Uma mensagem identifica a nova versão depois da abertura.
 
 **Apenas a primeira APK OTA tem de ser instalada manualmente.** Esta versão não atualiza uma APK v1.1.4 por OTA, porque a versão anterior não tinha o plugin updater. Se a app não encontrar uma release, permanece na versão existente. Se uma atualização falhar o arranque, o plugin dispõe de mecanismo de rollback, desde que `notifyAppReady()` seja executado a tempo. A informação profissional continua no armazenamento local `rjp-daily-ip-v2`, assim como os dados pessoais, e não é colocada no repositório GitHub.
 
 **Repositório privado:** o esquema sem servidor usa a API pública GitHub e assets públicos; não inclui tokens GitHub na APK. Se precisares de privacidade do **código-fonte** num repositório privado, será necessário configurar um servidor de distribuição separado e autenticado de forma segura. Não coloques tokens em `VITE_` nem em assets públicos.
+
+
+**Recuperação:** se uma versão OTA falhar ao inicializar, o Capacitor Updater pode reverter para o bundle anterior; mantém sempre cópias de segurança dos dados profissionais. Se forem necessários novos plugins, atualiza a baseline apenas depois de publicares uma APK assinada e instalada com esses plugins.
 
 Documentação técnica do componente: https://capgo.app/docs/plugins/updater/api/ e https://capgo.app/docs/cli/commands/.
