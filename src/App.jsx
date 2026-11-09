@@ -464,13 +464,32 @@ function App(){
       <div className="month-card">
        <div className="month-heading"><button aria-label="Mês anterior" onClick={()=>shiftMonth(-1)}><ChevronLeft/></button><h2>{monthLabel}</h2><button aria-label="Mês seguinte" onClick={()=>shiftMonth(1)}><ChevronRight/></button></div>
        <div className="calendar-grid">{['S','T','Q','Q','S','S','D'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}
-        {monthCells.map((day,i)=><button key={i} disabled={!day} className={`day-cell ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(listDay)?'selected':''} ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(clock)?'today':''}`} onClick={()=>day&&setListDay(new Date(listYear,listMonth,day))}>{day||''}{day&&<span className="day-indicators">{ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='BT')&&<i className="guard-indicator bt" title="Prevenção BT"/>}{ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='CC')&&<i className="guard-indicator cc" title="Prevenção CC"/>}{countDate(day)>0&&!ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day)))&&<i className="guard-indicator other"/>}</span>}</button>)}
+        {monthCells.map((day,i)=><button key={i} disabled={!day} className={`day-cell ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(listDay)?'selected':''} ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(clock)?'today':''}`}
+          aria-label={day?day+' de '+monthLabel+', '+countDate(day)+' registos':'Fora do mês'} onClick={()=>day&&setListDay(new Date(listYear,listMonth,day))}>
+          {day||''}{day&&<><span className="day-indicators">
+            {ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='BT')&&<i className="guard-indicator bt" title="Prevenção BT"/>}
+            {ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='CC')&&<i className="guard-indicator cc" title="Prevenção CC"/>}
+            {(monthGroups[dateKey(new Date(listYear,listMonth,day))]||[]).some(e=>e.fromGoogle)&&<i className="guard-indicator google" title="Evento Google Calendar"/>}
+            {(monthGroups[dateKey(new Date(listYear,listMonth,day))]||[]).some(e=>!e.fromGoogle&&!e.fromIP)&&<i className="guard-indicator other" title="Compromisso RJP"/>}
+          </span>{countDate(day)>0&&<span className="day-count">{countDate(day)}</span>}</>}</button>)}
        </div>
       </div>
-      <div className="guard-calendar-legend"><span><i className="guard-indicator bt"/> Prevenção BT</span><span><i className="guard-indicator cc"/> Prevenção CC</span><span><i className="guard-indicator other"/> Outros registos</span></div>
+      <div className="guard-calendar-legend"><span><i className="guard-indicator google"/> Google</span><span><i className="guard-indicator bt"/> Prevenção BT</span><span><i className="guard-indicator cc"/> Prevenção CC</span><span><i className="guard-indicator other"/> RJP</span></div>
       <div className="section-heading"><h2>{listDay.toLocaleDateString('pt-PT',{day:'numeric',month:'long'})}</h2>{connected&&<button className="text-button" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar</button>}</div>
       {dayRows.length?dayRows.map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>):<div className="empty compact">Sem registos neste dia.</div>}
       <button className="outline-full" onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(new Date(listDay.getFullYear(),listDay.getMonth(),listDay.getDate(),9,0))}))}}><Plus size={18}/> Adicionar compromisso neste dia</button>
+      <div className="section-heading"><h2>Compromissos de {monthLabel}</h2><span className="counter">{monthEvents.length}</span></div>
+      {monthlyGoogle.length>0&&<p className="monthly-google-count">Google Calendar: {monthlyGoogle.length} evento(s) neste mês. Os restantes eventos consultados podem ser de meses seguintes.</p>}
+      {monthEvents.length?<div className="month-events-list">
+        {monthEvents.map(item=><button type="button" className="month-event-row" key={item.id} onClick={()=>{
+          const key=dateKey(item.when);
+          if(key)setListDay(new Date(key+'T12:00:00'));
+        }}>
+          <span className="month-event-date">{item.when?dateFmt(item.when,{month:'short'}):'—'}{!item.allDay&&item.when?' · '+timeFmt(item.when):''}</span>
+          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP':'RJP Daily'}</small></span>
+          <ChevronRight size={15}/>
+        </button>)}
+      </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}
     </>}
     {tab==='prevencoes'&&<IPWorkspace initialSection="guards" data={ipData} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
     {tab==='ip'&&<IPWorkspace data={ipData} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
