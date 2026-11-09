@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import {googleEventPayload,normalizeGoogleEvents,visibleGoogleCalendars} from '../logic/google-events.js';
 import {safeCalendarName} from '../logic/calendar-view.js';
+import {stableGoogleId} from '../logic/google-sync.js';
 
 // A app só necessita de ler/criar/editar eventos, não gerir calendários nem partilhas.
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -83,19 +84,41 @@ async function request(path,options={}){
     if(response.status===403){
       throw new Error('O Google Calendar recusou o acesso. Confirma a Calendar API, o âmbito calendar.events e a autorização da conta.');
     }
-    throw new Error(error?.error?.message || `Erro Google Calendar ${response.status}`);
+    const exception=new Error(error?.error?.message || `Erro Google Calendar ${response.status}`);
+    exception.status=response.status;
+    throw exception;
   }
   return response.status===204?null:response.json();
 }
 
 export async function upsertGoogle(item){
-  const body=JSON.stringify(googleEventPayload(item));
+  const calendarId=encodeURIComponent(item.googleCalendarId||'primary');
+  const base='/calendars/'+calendarId+'/events';
+  const payload=googleEventPayload(item);
   if(item.googleEventId){
-    const x=await request(`/calendars/primary/events/${encodeURIComponent(item.googleEventId)}`,{method:'PATCH',body});
-    return x.id;
+    const event=await request(base+'/'+encodeURIComponent(item.googleEventId),
+      {method:'PATCH',body:JSON.stringify(payload)});
+    return event.id;
   }
-  const x=await request('/calendars/primary/events',{method:'POST',body});
-  return x.id;
+  // O mesmo registo local recebe sempre o mesmo ID no Google para evitar
+  // duplicações após perda de Internet durante a confirmação.
+  const fixedId=stableGoogleId(item.id);
+  const resource={...payload};
+  if(fixedId){
+    resource.id=fixedId;
+    resource.extendedProperties={private:{rjpLocalId:String(item.id)}};
+  }
+  try{
+    const event=await request(base,{method:'POST',body:JSON.stringify(resource)});
+    return event.id;
+  }catch(error){
+    if(error.status!==409 || !fixedId)throw error;
+    const existing=await request(base+'/'+encodeURIComponent(fixedId));
+    if(existing?.extendedProperties?.private?.rjpLocalId!==String(item.id)){
+      throw new Error('Existe um conflito de identificador Google. Não foi criado outro evento.');
+    }
+    return existing.id;
+  }
 }
 export async function deleteGoogleEvent(id){
   if(!id || !accessToken)return;
