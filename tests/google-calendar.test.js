@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {googleEventPayload,normalizeGoogleEvents} from '../src/logic/google-events.js';
+import {googleEventPayload,normalizeGoogleEvents,visibleGoogleCalendars} from '../src/logic/google-events.js';
 
 test('Compromisso exportado ao Google tem início, fim e fuso Europe/Lisbon',()=>{
  const payload=googleEventPayload({title:'Ligar ao Eng.º Marco Silva',details:'Electro Campos',
@@ -28,4 +28,27 @@ test('Eventos cancelados não aparecem na agenda e horários válidos são respe
 });
 test('Google não recebe evento sem data válida',()=>{
  assert.throws(()=>googleEventPayload({title:'Tarefa',kind:'tarefa',when:'errado'}));
+});
+
+test('Calendários selecionados e visíveis são carregados, sem os ocultos',()=>{
+ const calendars=visibleGoogleCalendars([
+   {id:'primary',summary:'Pessoal',selected:true},
+   {id:'profession',summary:'Trabalho',selected:true},
+   {id:'hidden',hidden:true},
+   {id:'off',selected:false}
+ ]);
+ assert.deepEqual(calendars.map(c=>c.id),['primary','profession']);
+});
+test('Eventos com mesmo ID em calendários diferentes têm chaves diferentes',()=>{
+ const raw=[{id:'event1',summary:'Reunião',start:{dateTime:'2026-11-10T15:00:00Z'}}];
+ const [a]=normalizeGoogleEvents(raw,{id:'primary',summary:'Pessoal'});
+ const [b]=normalizeGoogleEvents(raw,{id:'profissional@example.com',summary:'Trabalho'});
+ assert.notEqual(a.id,b.id);
+ assert.equal(b.calendarName,'Trabalho');
+ assert.equal(b.googleEventId,'event1');
+});
+test('Eventos de dia inteiro dos calendários secundários mantêm data local',()=>{
+ const [event]=normalizeGoogleEvents([{id:'bt',summary:'Prevenção BT',start:{date:'2026-11-09'}}],{id:'trabalho'});
+ assert.equal(event.when,'2026-11-09');
+ assert.equal(event.allDay,true);
 });
