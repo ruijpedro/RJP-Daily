@@ -1,3 +1,4 @@
+import {safeCalendarName} from './calendar-view.js';
 /** Lógica independente do SDK Google, testável sem autenticação. */
 const dateObj=iso=>({dateTime:new Date(iso).toISOString(),timeZone:'Europe/Lisbon'});
 export function googleEventPayload(item){
@@ -11,9 +12,10 @@ export function googleEventPayload(item){
 export function normalizeGoogleEvents(events,calendar={}){
   return (Array.isArray(events)?events:[]).filter(e=>e?.status!=='cancelled' && e?.id).map(e=>({
     id:'google:'+encodeURIComponent(calendar.id||'primary')+':'+e.id,
-    googleEventId:e.id,calendarId:calendar.id||'primary',calendarName:calendar.summary||'Google Calendar',
+    googleEventId:e.id,calendarId:calendar.id||'primary',calendarName:safeCalendarName(calendar.summary),
     kind:'evento',title:e.summary||'(Sem título)',
     details:e.description||'',when:e.start?.dateTime||e.start?.date||'',
+    end:e.end?.dateTime||e.end?.date||'',
     fromGoogle:true,allDay:!e.start?.dateTime
   }));
 }
