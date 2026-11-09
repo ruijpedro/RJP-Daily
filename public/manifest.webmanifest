@@ -1,6 +1,6 @@
 {
-  "name": "RJP Daily — Agenda, Voz e IP_RJP",
-  "short_name": "RJP Daily",
+  "name": "Agenda RJP — Agenda, Voz e IP_RJP",
+  "short_name": "Agenda RJP",
   "description": "Agenda, lembretes e deslocações profissionais",
   "start_url": "./",
   "display": "standalone",
