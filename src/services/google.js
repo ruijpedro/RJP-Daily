@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import {googleEventPayload,normalizeGoogleEvents,visibleGoogleCalendars} from '../logic/google-events.js';
+import {safeCalendarName} from '../logic/calendar-view.js';
 
 // A app só necessita de ler/criar/editar eventos, não gerir calendários nem partilhas.
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -154,7 +155,7 @@ export async function getGoogleSnapshot(from=new Date()){
   if(failures.length===settled.length)throw failures[0].reason;
   const warning=[listWarning,failures.length?`${failures.length} agenda(s) não puderam ser consultadas.`:'',
     calendars.length>selected.length?'A mostrar as primeiras 35 agendas.':''].filter(Boolean).join(' ');
-  return {events,calendars:selected,warning};
+  return {events,calendars:selected.map(x=>({...x,summary:safeCalendarName(x.summary)})),warning};
 }
 /** Compatibilidade com chamadas anteriores. */
 export async function getGoogleEvents(from=new Date()){
