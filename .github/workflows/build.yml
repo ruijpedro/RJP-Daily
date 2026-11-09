@@ -74,8 +74,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${RJP_DAILY_KEYSTORE_B64:-}" && -n "${RJP_DAILY_KEYSTORE_PASSWORD:-}" && -n "${RJP_DAILY_KEY_ALIAS:-}" && -n "${RJP_DAILY_KEY_PASSWORD:-}" ]]; then
-            echo "$RJP_DAILY_KEYSTORE_B64" | base64 --decode > "$GITHUB_WORKSPACE/android/app/rjp-release.jks"
+          # Não aceitar uma assinatura incompleta em silêncio.
+          configured=0
+          for variable in RJP_DAILY_KEYSTORE_B64 RJP_DAILY_KEYSTORE_PASSWORD RJP_DAILY_KEY_ALIAS RJP_DAILY_KEY_PASSWORD; do
+            if [[ -n "${!variable:-}" ]]; then configured=$((configured+1)); fi
+          done
+          if [[ "$configured" -gt 0 && "$configured" -lt 4 ]]; then
+            echo "::error::Assinatura Android incompleta: configura os quatro repository secrets."
+            exit 1
+          fi
+          if [[ "$configured" -eq 4 ]]; then
+            printf '%s' "$RJP_DAILY_KEYSTORE_B64" | base64 --decode > "$GITHUB_WORKSPACE/android/app/rjp-release.jks"
+            # Confirmar integridade do certificado antes de iniciar a compilação Gradle.
+            keytool -list -v -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
+              -storepass "$RJP_DAILY_KEYSTORE_PASSWORD" -alias "$RJP_DAILY_KEY_ALIAS" \
+              | grep 'SHA1:' | head -n 1
+            echo "Certificado e alias validados. A compilar APK RELEASE."
             echo "RJP_DAILY_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/rjp-release.jks" >> "$GITHUB_ENV"
             echo "RJP_DAILY_KEYSTORE_PASSWORD=$RJP_DAILY_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
             echo "RJP_DAILY_KEY_ALIAS=$RJP_DAILY_KEY_ALIAS" >> "$GITHUB_ENV"
@@ -102,6 +116,11 @@ jobs:
           set -euo pipefail
           APK=$(find android/app/build/outputs/apk -name '*.apk' -type f | head -n 1)
           echo "APK: $APK"
+          if [[ "$RJP_BUILD_RELEASE" == "1" ]]; then
+            echo 'APK RELEASE: certificado SHA-1 da assinatura permanente'
+          else
+            echo 'APK DEBUG: SHA-1 temporária, não usar para versão de produção'
+          fi
           keytool -printcert -jarfile "$APK" | grep -E 'SHA1:|SHA256:|Owner:' || true
       - uses: actions/upload-artifact@v4
         with:
