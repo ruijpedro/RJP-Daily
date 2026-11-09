@@ -18,7 +18,7 @@ import {
   permissionStatus, requestNotificationPermission, requestExactSetting,
   scheduleItem, cancelItem, onNotificationAction, scheduleDailySummary, stopDailySummary
 } from './services/notifications.js';
-import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
+import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleSnapshot, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
@@ -83,6 +83,7 @@ function App(){
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
  const [remoteEvents,setRemoteEvents]=useState([]);
+ const [googleCalendarInfo,setGoogleCalendarInfo]=useState({loading:false,count:0,calendars:[],warning:'',error:''});
  const [permissions,setPermissions]=useState({});
  const [dailySummary,setDailySummary]=useState(()=>localStorage.getItem('rjp-daily-summary')==='1');
  const fileInput=useRef(null);
@@ -129,16 +130,21 @@ function App(){
   })();
   return ()=>{active=false};
  },[]);
- // O calendário Google acompanha o mês consultado na RJP Daily.
+ // Atualizar calendários do mês e expor contagens/erros na agenda.
  useEffect(()=>{
   if(!connected)return;
   let active=true;
-  void getGoogleEvents(new Date(listYear,listMonth,1))
-    .then(events=>{if(active)setRemoteEvents(events)})
+  setGoogleCalendarInfo(prev=>({...prev,loading:true,error:''}));
+  void getGoogleSnapshot(new Date(listYear,listMonth,1))
+    .then(snapshot=>{
+      if(!active)return;
+      setRemoteEvents(snapshot.events);
+      setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
+    })
     .catch(error=>{
       if(!active)return;
       if(!googleConnected()){setConnected(false);setAccount('');setRemoteEvents([]);}
-      notify('Google Calendar: '+(error.message||'Falha ao carregar eventos'));
+      setGoogleCalendarInfo(prev=>({...prev,loading:false,error:error.message||'Erro ao consultar o Google Calendar'}));
     });
   return ()=>{active=false};
  },[connected,listYear,listMonth]);
@@ -253,8 +259,17 @@ function App(){
  }
  async function refreshGoogle(silent=false){
   if(!googleConnected())return;
-  try{const a=await getGoogleEvents(new Date(listYear,listMonth,1));setRemoteEvents(a);if(!silent)notify('Agenda Google atualizada.');}
-  catch(e){notify(`Não foi possível obter a agenda: ${e.message}`);setConnected(googleConnected());}
+  setGoogleCalendarInfo(prev=>({...prev,loading:true,error:''}));
+  try{
+    const snapshot=await getGoogleSnapshot(new Date(listYear,listMonth,1));
+    setRemoteEvents(snapshot.events);
+    setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
+    if(!silent)notify('Google Calendar: '+snapshot.events.length+' compromisso(s) em '+snapshot.calendars.length+' calendário(s).');
+  }catch(e){
+    setGoogleCalendarInfo(prev=>({...prev,loading:false,error:e.message||'Falha ao ler a agenda'}));
+    if(!silent)notify('Não foi possível atualizar os eventos Google. Consulta Definições.');
+    setConnected(googleConnected());
+  }
  }
  async function googleConnect(){
   setBusy(true);setGoogleError('');
@@ -264,10 +279,11 @@ function App(){
    const u=await connectGoogle(id);
    phase='calendar';
    // Só apresentar «Ligado» depois de uma chamada real à Google Calendar API.
-   const list=await getGoogleEvents();
+   const snapshot=await getGoogleSnapshot(new Date(listYear,listMonth,1));
    localStorage.setItem('rjp-daily-google-client-id',id);
-   setAccount(u.name);setConnected(true);setRemoteEvents(list);
-   notify('Google Calendar ligado. Os teus compromissos estão disponíveis na agenda.');
+   setAccount(u.name);setConnected(true);setRemoteEvents(snapshot.events);
+   setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
+   notify('Google Calendar ligado: '+snapshot.events.length+' compromisso(s) encontrados.');
   }catch(e){
    const diagnostic=describeGoogleLoginFailure(e,phase);
    setGoogleError(diagnostic);
