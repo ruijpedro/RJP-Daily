@@ -1,9 +1,10 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
-import {googleEventPayload,normalizeGoogleEvents} from '../logic/google-events.js';
+import {googleEventPayload,normalizeGoogleEvents,visibleGoogleCalendars} from '../logic/google-events.js';
 
 // A app só necessita de ler/criar/editar eventos, não gerir calendários nem partilhas.
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const CALENDAR_LIST_SCOPE = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 export const GOOGLE_CALENDAR_SCOPE = CALENDAR_SCOPE;
 let initializedClient = null;
 let initialization = null;
@@ -37,7 +38,7 @@ function applyResult(answer) {
 export async function connectGoogle(clientId) {
   await initialize(clientId);
   const result=await SocialLogin.login({provider:'google',options:{
-    scopes:['email','profile',CALENDAR_SCOPE],
+    scopes:['email','profile',CALENDAR_SCOPE,CALENDAR_LIST_SCOPE],
     filterByAuthorizedAccounts:false
   }});
   if(!applyResult(result))throw new Error('O Google não concedeu um token de acesso ao Calendar. Confirma permissões, Client ID Web e SHA-1 da APK.');
@@ -99,15 +100,63 @@ export async function deleteGoogleEvent(id){
   if(!id || !accessToken)return;
   return request(`/calendars/primary/events/${encodeURIComponent(id)}`,{method:'DELETE'});
 }
+/** Consulta os calendários visíveis, não apenas o primário.
+ * O âmbito calendar.calendarlist.readonly autoriza apenas a listagem de agendas.
+ * Se ainda não foi autorizado, recua para o primário e indica a limitação. */
+export async function getGoogleSnapshot(from=new Date()){
+  const begin=new Date(from.getFullYear(),from.getMonth(),1).toISOString();
+  const end=new Date(from.getFullYear(),from.getMonth()+2,1).toISOString();
+  let calendars=[];
+  let listWarning='';
+  try{
+    let pageToken;
+    do{
+      const params=new URLSearchParams({maxResults:'250'});
+      if(pageToken)params.set('pageToken',pageToken);
+      const result=await request('/users/me/calendarList?'+params.toString());
+      calendars.push(...(result.items||[]));
+      pageToken=result.nextPageToken;
+    }while(pageToken && calendars.length<1000);
+    calendars=visibleGoogleCalendars(calendars);
+  }catch(error){
+    // A versão anterior apenas concedia calendar.events. A aplicação continua
+    // útil sem o novo âmbito, mas informa que só lê o calendário principal.
+    const message=String(error?.message||'');
+    if(/403|permiss|scope|acesso|calendar/i.test(message)){
+      calendars=[];
+      listWarning='Apenas calendário principal. Autoriza também calendar.calendarlist.readonly para veres as restantes agendas.';
+    }else throw error;
+  }
+  if(!calendars.length){
+    calendars=[{id:'primary',summary:'Calendário principal',primary:true}];
+    if(!listWarning)listWarning='Não foram encontrados calendários visíveis; a consultar o principal.';
+  }
+  // Colocar o calendário principal primeiro. A consulta por "primary" garante
+  // que o identificador funciona mesmo quando o Google fornece o email como ID.
+  calendars.sort((a,b)=>Number(Boolean(b.primary))-Number(Boolean(a.primary)));
+  const selected=calendars.slice(0,35);
+  const fetchOne=async calendar=>{
+    const all=[];let pageToken;
+    do{
+      const params=new URLSearchParams({timeMin:begin,timeMax:end,singleEvents:'true',
+        orderBy:'startTime',maxResults:'250',timeZone:'Europe/Lisbon'});
+      if(pageToken)params.set('pageToken',pageToken);
+      const result=await request('/calendars/'+encodeURIComponent(calendar.id)+'/events?'+params);
+      all.push(...(result.items||[]));
+      pageToken=result.nextPageToken;
+    }while(pageToken && all.length<2500);
+    return normalizeGoogleEvents(all,calendar);
+  };
+  // Evitar falha global quando uma agenda partilhada foi revogada.
+  const settled=await Promise.allSettled(selected.map(fetchOne));
+  const failures=settled.filter(x=>x.status==='rejected');
+  const events=settled.flatMap(x=>x.status==='fulfilled'?x.value:[]);
+  if(failures.length===settled.length)throw failures[0].reason;
+  const warning=[listWarning,failures.length?`${failures.length} agenda(s) não puderam ser consultadas.`:'',
+    calendars.length>selected.length?'A mostrar as primeiras 35 agendas.':''].filter(Boolean).join(' ');
+  return {events,calendars:selected,warning};
+}
+/** Compatibilidade com chamadas anteriores. */
 export async function getGoogleEvents(from=new Date()){
-  const begin=new Date(from.getFullYear(),from.getMonth(),from.getDate()-7).toISOString();
-  const end=new Date(from.getFullYear(),from.getMonth()+2,from.getDate()+1).toISOString();
-  const all=[];let pageToken;
-  do{
-    const params=new URLSearchParams({timeMin:begin,timeMax:end,singleEvents:'true',orderBy:'startTime',maxResults:'250'});
-    if(pageToken)params.set('pageToken',pageToken);
-    const x=await request('/calendars/primary/events?'+params.toString());
-    all.push(...(x.items||[]));pageToken=x.nextPageToken;
-  }while(pageToken && all.length<1000);
-  return normalizeGoogleEvents(all);
+  return (await getGoogleSnapshot(from)).events;
 }
