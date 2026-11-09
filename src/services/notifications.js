@@ -12,7 +12,7 @@ export async function permissionStatus() {
 export async function requestNotificationPermission() {
  if (!native()) { if('Notification' in window) return (await Notification.requestPermission())==='granted'; return false; }
  const result=await LocalNotifications.requestPermissions();
- await LocalNotifications.createChannel({id:'rjp_daily_reminders',name:'Lembretes RJP Daily',description:'Tarefas e compromissos',importance:5,visibility:1});
+ await LocalNotifications.createChannel({id:'rjp_daily_reminders',name:'Lembretes Agenda RJP',description:'Tarefas e compromissos',importance:5,visibility:1});
  await LocalNotifications.registerActionTypes({types:[{id:'rjp_daily',actions:[{id:'done',title:'Concluído'},{id:'snooze',title:'Adiar 10 min'}]}]});
  return result.display==='granted';
 }
@@ -29,7 +29,7 @@ export async function scheduleItem(item) {
  try {
   await LocalNotifications.schedule({ notifications:[{
    id:item.notificationId,
-   title:item.kind==='evento'?'Compromisso · RJP Daily':'Lembrete · RJP Daily',
+   title:item.kind==='evento'?'Compromisso · Agenda RJP':'Lembrete · Agenda RJP',
    body:item.title,
    schedule:{at:date,allowWhileIdle:true},
    channelId:'rjp_daily_reminders',
@@ -49,7 +49,7 @@ export async function scheduleDailySummary(hour=8) {
  try {
   await LocalNotifications.cancel({notifications:[{id:2040000000}]});
   await LocalNotifications.schedule({notifications:[{
-   id:2040000000,title:'Bom dia · RJP Daily',body:'Consulta a tua agenda e as tarefas pendentes de hoje.',
+   id:2040000000,title:'Bom dia · Agenda RJP',body:'Consulta a tua agenda e as tarefas pendentes de hoje.',
    channelId:'rjp_daily_reminders',schedule:{on:{hour:Number(hour),minute:0},repeats:true,allowWhileIdle:true},
   }]});
   return true;
