@@ -1,8 +1,19 @@
-# RJP Daily v1.1.6 — Agenda, Voz, Ícone RJP, Gestão IP e OTA automática
+# RJP Daily v1.1.7 — Agenda, Voz, Gestão IP, OTA e Google Calendar
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
 A RJP Daily reúne a agenda pessoal e profissional com os módulos de **deslocações, prevenções BT/CC, atividades, viaturas e relatórios** da IP_RJP. Foi desenvolvida a partir do projeto RJP Daily v1.0 e dos requisitos reais encontrados no repositório `ruijpedro/IP_RJP` (versão 2.5.0); mantém a identidade `pt.rjp.daily` para preservar o armazenamento e permitir atualizações futuras com a **mesma chave de assinatura**.
+
+## Google Calendar — ligação melhorada na v1.1.7
+
+- Autenticação Google no Android e na WebApp através de Client ID Web OAuth e autorização da conta.
+- Em Android tenta recuperar a sessão Google ao reabrir e renovar o token expirado; quando o Google não permitir, é necessário autorizar novamente.
+- A aplicação só apresenta o estado **Ligado** depois de validar uma chamada real à Google Calendar API.
+- Os eventos do Google são carregados para o mês selecionado, incluindo compromissos existentes e eventos de dia inteiro.
+- Ao guardar um compromisso profissional ou pessoal podes selecionar **Adicionar ao Google Calendar**. As notas, deslocações e prevenções não são partilhadas por defeito.
+- O código nativo e o package ID não foram alterados; a versão 1.1.7 é compatível com o mecanismo OTA da APK 1.1.5.
+
+**Configuração necessária:** ativa a Google Calendar API e cria no Google Cloud um cliente OAuth Web e um Android com o SHA-1 da APK instalada. O guia completo está em [GOOGLE_CALENDAR_SETUP_PT.md](GOOGLE_CALENDAR_SETUP_PT.md). **A ligação à conta só é efetuada após autorização do utilizador**; não é possível ativá-la apenas através do GitHub.
 
 ## Prevenções BT/CC — módulo da antiga IP_RJP, em destaque (v1.1.4)
 
