@@ -8,9 +8,10 @@ A configuração é feita uma única vez no teu projeto do Google Cloud. **O Cli
 2. Abre https://console.cloud.google.com/apis/library/calendar-json.googleapis.com e ativa **Google Calendar API**.
 3. Em **Google Auth Platform → Branding**, preenche o nome da app **RJP Daily**, email de suporte e contacto.
 4. Em **Audience**, escolhe **External** para uma conta Google pessoal. Se o projeto estiver em **Testing**, adiciona a tua própria conta em **Test users**. O modo Testing pode exigir nova autorização quando os tokens expirarem.
-5. Em **Data Access**, adiciona apenas o âmbito necessário:
-   `https://www.googleapis.com/auth/calendar.events`
-   Permite ver, criar e atualizar eventos; a app não solicita acesso ao Gmail ou ao Drive.
+5. Em **Data Access / Acesso a dados**, adiciona estas duas permissões Google Calendar:
+   - `https://www.googleapis.com/auth/calendar.events` — permite ler, criar e atualizar eventos.
+   - `https://www.googleapis.com/auth/calendar.calendarlist.readonly` — permite listar os calendários visíveis e selecionados da conta (sem alterar configurações nem partilhas).
+   A app não solicita acesso ao Gmail ou ao Drive.
 
 ## 2 — Criar credenciais OAuth
 
@@ -46,6 +47,14 @@ No Android, é o **Client ID Web**, não o Client ID Android, que deves introduz
 4. A app verifica a ligação consultando o Google Calendar. Quando funcionar, aparece **Google Calendar ligado**.
 5. Na agenda da RJP Daily poderás ver os eventos do Google. O botão **Atualizar agenda** volta a consultar a conta.
 6. Ao criar/editar um compromisso, ou ao guardar uma deslocação/atividade/prevenção com hora, podes ativar **Adicionar ao Google Calendar**. A sincronização desses registos é **opcional**. Os registos sem hora, como prevenções de dia inteiro, continuam no calendário interno.
+
+## 3A — Ver eventos de vários calendários (v1.1.10)
+
+O Google pode ter várias agendas por conta. A RJP Daily v1.1.8 e anteriores só consultavam a agenda principal. A partir da v1.1.10, a app lê as agendas visíveis e selecionadas, mostra os respetivos nomes, número de eventos e eventuais erros de leitura.
+
+**Se a conta já estava ligada antes da v1.1.10:** adiciona a permissão `calendar.calendarlist.readonly` em Google Cloud → RJP Daily → Acesso a dados, guarda, e na APK entra em **Definições → Google Calendar → Desligar → Ligar conta Google** para autorizar novamente. Em seguida abre **Agenda → Atualizar** e consulta o contador.
+
+Se aparecer **Apenas calendário principal**, falta autorizar a leitura da lista de agendas. Se o contador continuar em 0, confirma que selecionaste a mesma conta Google que utilizas no Google Calendar e que os eventos estão no mês apresentado.
 
 ## 4 — Comportamento da sincronização
 
