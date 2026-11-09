@@ -102,7 +102,7 @@ function App(){
   let mounted=true;
   const seen=localStorage.getItem('rjp-daily-last-opened-version');
   if(hasAndroidOta() && seen && seen!==APP_VERSION){
-   setToast('RJP Daily atualizada para a versão '+APP_VERSION+'.');
+   setToast('Agenda RJP atualizada para a versão '+APP_VERSION+'.');
   }
   if(hasAndroidOta())localStorage.setItem('rjp-daily-last-opened-version',APP_VERSION);
   const status=s=>{
@@ -169,7 +169,7 @@ function App(){
     const k=`${item.id}:${item.when}`;
     if(now>=when && now-when<90000 && !webDelivered.current.has(k)){
       webDelivered.current.add(k);
-      try {new Notification('RJP Daily · Lembrete',{body:item.title,tag:k});}catch{}
+      try {new Notification('Agenda RJP · Lembrete',{body:item.title,tag:k});}catch{}
     }
    }
   };
@@ -257,7 +257,7 @@ function App(){
   if(item.done)await scheduleItem(reopened);
  }
  async function remove(item){
-  if(!window.confirm(`Eliminar «${item.title}» da RJP Daily?`))return;
+  if(!window.confirm(`Eliminar «${item.title}» da Agenda RJP?`))return;
   if(item.googleEventId && connected && window.confirm('Eliminar também o evento associado no Google Calendar?')){
    try{await deleteGoogleEvent(item.googleEventId);}catch(e){notify('Não foi possível eliminar no Google: '+e.message)}
   }
@@ -545,7 +545,7 @@ function App(){
           if(key)setListDay(new Date(key+'T12:00:00'));
         }}>
           <span className="month-event-date">{item.when?dateFmt(item.when,{month:'short'}):'—'}{!item.allDay&&item.when?' · '+timeFmt(item.when):''}</span>
-          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP':'RJP Daily'}</small></span>
+          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
           <ChevronRight size={15}/>
         </button>)}
       </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}
@@ -587,7 +587,7 @@ function App(){
         <div className="settings-row"><button className="primary-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar</button></div></>:<>
         <label className="field-label" htmlFor="google-client">Client ID Web (Google OAuth)</label>
         <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
-        <button type="button" className="light-action" onClick={()=>{setClientId(DEFAULT_GOOGLE_WEB_CLIENT_ID);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',DEFAULT_GOOGLE_WEB_CLIENT_ID)}}>Usar Client ID RJP Daily</button>
+        <button type="button" className="light-action" onClick={()=>{setClientId(DEFAULT_GOOGLE_WEB_CLIENT_ID);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',DEFAULT_GOOGLE_WEB_CLIENT_ID)}}>Usar Client ID Agenda RJP</button>
         <button onClick={googleConnect} disabled={busy||!clientId.trim()} className="primary-action stretch"><Cloud size={17}/> {busy?'A ligar…':'Ligar conta Google'}</button>
         {googleError&&<div role="alert" className="fineprint"><strong>Diagnóstico de ligação:</strong> {googleError}<p>Confirma a SHA-1 da APK instalada, o pacote pt.rjp.daily e os utilizadores de teste do Google Cloud. Se não resolver, envia uma imagem desta mensagem (sem tokens ou Client Secret).</p></div>}
         <p className="fineprint">Configuração única: no Google Cloud, ativa a Calendar API e cria clientes OAuth Web e Android. Usa o <b>Client ID Web</b> aqui na app. No cliente Android, indica <b>pt.rjp.daily</b> e a impressão digital SHA-1 da APK instalada.</p>
