@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
+import {googleEventPayload,normalizeGoogleEvents} from '../logic/google-events.js';
 
 // A app só necessita de ler/criar/editar eventos, não gerir calendários nem partilhas.
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -95,14 +96,6 @@ async function request(path,options={},retried=false){
   return response.status===204?null:response.json();
 }
 
-const dateObj=iso=>({dateTime:new Date(iso).toISOString(),timeZone:'Europe/Lisbon'});
-export function googleEventPayload(item){
-  if(!item?.when || Number.isNaN(new Date(item.when).getTime()))throw new Error('O evento necessita de data e hora válidas.');
-  const start=new Date(item.when);
-  const end=new Date(start.getTime()+(item.kind==='evento'?60:15)*60000);
-  return {summary:item.title,description:`Criado pela RJP Daily.\n${item.details||''}`,
-    start:dateObj(start),end:dateObj(end)};
-}
 export async function upsertGoogle(item){
   const body=JSON.stringify(googleEventPayload(item));
   if(item.googleEventId){
@@ -126,9 +119,5 @@ export async function getGoogleEvents(from=new Date()){
     const x=await request('/calendars/primary/events?'+params.toString());
     all.push(...(x.items||[]));pageToken=x.nextPageToken;
   }while(pageToken && all.length<1000);
-  return all.filter(e=>e.status!=='cancelled').map(e=>({
-    id:'google:'+e.id,googleEventId:e.id,kind:'evento',title:e.summary||'(Sem título)',
-    details:e.description||'',when:e.start?.dateTime||e.start?.date||'',
-    fromGoogle:true,allDay:!e.start?.dateTime
-  }));
+  return normalizeGoogleEvents(all);
 }
