@@ -103,6 +103,22 @@ jobs:
               exit 1
             fi
             echo "Certificado JKS e alias verificados."
+            # Validar também a palavra-passe da chave privada antes do Gradle.
+            if ! keytool -importkeystore \
+                -srckeystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
+                -srcstoretype JKS \
+                -srcstorepass "$RJP_DAILY_KEYSTORE_PASSWORD" \
+                -srcalias "$RJP_DAILY_KEY_ALIAS" \
+                -srckeypass "$RJP_DAILY_KEY_PASSWORD" \
+                -destkeystore "$RUNNER_TEMP/agenda-rjp-key-check.p12" \
+                -deststoretype PKCS12 \
+                -deststorepass "$RJP_DAILY_KEY_PASSWORD" \
+                -destkeypass "$RJP_DAILY_KEY_PASSWORD" -noprompt >/dev/null 2>&1; then
+              echo "::error::RJP_DAILY_KEY_PASSWORD inválido. Volta a copiar o valor do ficheiro 04_RJP_DAILY_KEY_PASSWORD.txt do kit."
+              exit 1
+            fi
+            rm -f "$RUNNER_TEMP/agenda-rjp-key-check.p12"
+            echo "Chave privada confirmada."
             # O fingerprint é público; a chave privada continua protegida.
             fingerprint=$(keytool -exportcert -rfc -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
               -storepass "$RJP_DAILY_KEYSTORE_PASSWORD" -alias "$RJP_DAILY_KEY_ALIAS" \
