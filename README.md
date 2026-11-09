@@ -1,8 +1,18 @@
-# RJP Daily v1.1.8 — Agenda, Voz, Gestão IP, OTA e diagnóstico Google Calendar
+# RJP Daily v1.1.9 — Google Calendar multi-agenda, voz, gestão IP e OTA
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
 A RJP Daily reúne a agenda pessoal e profissional com os módulos de **deslocações, prevenções BT/CC, atividades, viaturas e relatórios** da IP_RJP. Foi desenvolvida a partir do projeto RJP Daily v1.0 e dos requisitos reais encontrados no repositório `ruijpedro/IP_RJP` (versão 2.5.0); mantém a identidade `pt.rjp.daily` para preservar o armazenamento e permitir atualizações futuras com a **mesma chave de assinatura**.
+
+## Google Calendar com múltiplas agendas — v1.1.9
+
+- Corrigida a leitura que até agora consultava **apenas o calendário principal**. Agora são consultados os calendários **visíveis e selecionados** da conta Google (pessoal, profissional, partilhado, etc.).
+- No ecrã **Agenda** e em **Definições → Google Calendar** aparece a quantidade de eventos carregados, a quantidade e os nomes dos calendários, bem como avisos de permissões/erros.
+- Os eventos de cada calendário têm identificadores internos distintos, impedindo colisões entre agendas.
+- A RJP Daily requer uma nova permissão **só de leitura da lista de calendários**: `https://www.googleapis.com/auth/calendar.calendarlist.readonly`. A permissão já existente `calendar.events` continua necessária para ler e criar/editar eventos.
+- **No Google Cloud → RJP Daily → Acesso a dados → Adicionar ou remover escopos**, adiciona `calendar.calendarlist.readonly`, guarda e, no telemóvel, abre RJP Daily → Definições → Google Calendar → **Desligar** → **Ligar conta Google** para conceder a nova autorização.
+- Se a lista de calendários ainda não for autorizada, a app tenta consultar o principal, apresenta aviso e não perde os registos locais.
+- Nenhuma alteração à identidade Android ou aos plugins: a v1.1.9 pode ser publicada por OTA sobre a base v1.1.5.
 
 ## Correção da ligação Google — v1.1.8
 
