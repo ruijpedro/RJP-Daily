@@ -20,12 +20,13 @@ import {
 } from './services/notifications.js';
 import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleSnapshot, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
+import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
 const NAV=[{id:'inicio',icon:Home,text:'Início'},{id:'agenda',icon:CalendarDays,text:'Agenda'},{id:'ip',icon:BriefcaseBusiness,text:'IP'},{id:'prevencoes',icon:ShieldCheck,text:'Prevenções'},{id:'tarefas',icon:ListTodo,text:'Tarefas'},{id:'notas',icon:StickyNote,text:'Notas'},{id:'definicoes',icon:Settings2,text:'Definições'}];
 const startOfDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
-const dateKey=d=>new Date(d).toLocaleDateString('sv-SE');
+const dateKey=calendarDayKey;
 const toDate=when=>when?new Date(when):null;
 const dateFmt=(when,opt={})=>new Intl.DateTimeFormat('pt-PT',{day:'2-digit',month:'short',...opt}).format(toDate(when));
 const timeFmt=when=>new Intl.DateTimeFormat('pt-PT',{hour:'2-digit',minute:'2-digit'}).format(toDate(when));
@@ -411,13 +412,17 @@ function App(){
  const openProfessional=()=>setTab('ip');
  const openGuards=()=>setTab('prevencoes');
  const dateTitle=clock.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
- const dayRows=applyFilters(visibleAll).filter(i=>i.when&&dateKey(i.when)===dateKey(listDay)).sort((a,b)=>new Date(a.when)-new Date(b.when));
+ // O calendário não herda pesquisas e filtros dos separadores Tarefas/Notas.
+ const monthGroups=useMemo(()=>groupCalendarMonth(visibleAll,listYear,listMonth),[visibleAll,listYear,listMonth]);
+ const monthEvents=useMemo(()=>monthCalendarItems(monthGroups),[monthGroups]);
+ const monthlyGoogle=monthEvents.filter(x=>x.fromGoogle);
+ const dayRows=[...(monthGroups[dateKey(listDay)]||[])].sort((a,b)=>new Date(a.when)-new Date(b.when));
  const monthDate=new Date(listYear,listMonth,1);
  const monthFirst=new Date(listYear,listMonth,1).getDay();
  const offset=(monthFirst+6)%7; const daysInMonth=new Date(listYear,listMonth+1,0).getDate();
  const monthCells=Array.from({length:Math.ceil((offset+daysInMonth)/7)*7},(_,i)=>{const day=i-offset+1;return day>=1&&day<=daysInMonth?day:null;});
  const monthLabel=monthDate.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
- const countDate=d=>visibleAll.filter(i=>i.when&&dateKey(i.when)===dateKey(new Date(listYear,listMonth,d))).length;
+ const countDate=d=>(monthGroups[dateKey(new Date(listYear,listMonth,d))]||[]).length;
  const shiftMonth=n=>{const m=new Date(listYear,listMonth+n,1);setListMonth(m.getMonth());setListYear(m.getFullYear());setListDay(m)};
 
  return <div className="app">
