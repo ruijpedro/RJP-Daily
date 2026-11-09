@@ -1,8 +1,19 @@
-# RJP Daily v1.1.11 — Agenda Google visível no calendário, gestão IP e OTA
+# Agenda RJP v1.1.12 — agenda por voz, calendário Google, gestão IP e OTA
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
 A RJP Daily reúne a agenda pessoal e profissional com os módulos de **deslocações, prevenções BT/CC, atividades, viaturas e relatórios** da IP_RJP. Foi desenvolvida a partir do projeto RJP Daily v1.0 e dos requisitos reais encontrados no repositório `ruijpedro/IP_RJP` (versão 2.5.0); mantém a identidade `pt.rjp.daily` para preservar o armazenamento e permitir atualizações futuras com a **mesma chave de assinatura**.
+
+## Agenda RJP — nome novo e envio de eventos Google (v1.1.12)
+
+- Novo nome visível no cabeçalho da WebApp e nas páginas: **Agenda RJP**. Mantém-se o ícone RJP.
+- O nome sob o ícone **Android exige uma APK nova**, não pode ser alterado pela OTA HTML/CSS/JS. O identificador `pt.rjp.daily` e as chaves de armazenamento são preservados.
+- O Google Calendar → Agenda RJP já lê os calendários autorizados; para enviar os registos no sentido Agenda RJP → Google Calendar, seleciona a opção em cada tarefa/compromisso com data ou usa **Definições → Google Calendar → Enviar compromissos**. Confirma o lote antes de enviar.
+- Podes ativar **Enviar automaticamente novos compromissos**, desativado por defeito. A opção pré-seleciona o envio nos novos registos quando a conta está ligada; cada registo continua a ser confirmado no formulário.
+- Registos previamente enviados são identificados e não são duplicados pelo envio de lote. Cada evento novo usa identificador estável para recuperar pedidos em que houve falha de rede depois de o Google aceitar a criação.
+- **Notas sem hora, deslocações, prevenções BT/CC e outros registos profissionais não são enviados em lote sem autorização individual**. A aplicação nunca carrega dados do utilizador para o GitHub.
+- O envio destina-se ao **calendário principal da conta Google ligada**. A aplicação mostra um estado de sucesso/erro em Definições para distinguir ligação de sincronização.
+- **Renomear a APK mantendo a aplicação existente requer a mesma assinatura**. Se os segredos de assinatura não estiverem configurados, a APK debug gerada no Actions poderá ter outra assinatura e não instalar por cima. Não desinstales sem guardar cópia de segurança.
 
 ## Calendário mensal com eventos Google visíveis — v1.1.11
 
