@@ -277,6 +277,60 @@ function App(){
     setConnected(googleConnected());
   }
  }
+ // Exportação sempre iniciada pelo utilizador. Não partilhar notas ou
+ // deslocações/prevenções IP implicitamente com a conta Google.
+ async function syncOneGoogle(item){
+  if(busy)return;
+  if(!googleConnected()){
+   setGoogleWriteStatus('Liga a conta Google antes de enviar o compromisso.');
+   notify('A conta Google não está ligada.');return;
+  }
+  if(!googleExportCandidates([item]).length){
+   notify('Este registo já está sincronizado ou não tem data/hora.');return;
+  }
+  setBusy(true);
+  setGoogleWriteStatus('A enviar «'+item.title+'»…');
+  try{
+   const googleEventId=await upsertGoogle(item);
+   setItems(prev=>prev.map(x=>x.id===item.id?{...x,googleEventId,addToGoogle:true}:x));
+   setGoogleWriteStatus('Enviado para o calendário principal: «'+item.title+'».');
+   notify('Compromisso enviado ao Google Calendar.');
+   await refreshGoogle(true);
+  }catch(error){
+   setGoogleWriteStatus('Não foi possível enviar «'+item.title+'»: '+error.message);
+   notify('Google Calendar: envio falhou. Consulta Definições.');
+  }finally{setBusy(false)}
+ }
+ async function syncPendingGoogle(){
+  if(busy)return;
+  if(!googleConnected()){setGoogleWriteStatus('Volta a ligar a conta Google para sincronizar.');return;}
+  const all=googleExportCandidates(items);
+  if(!all.length){setGoogleWriteStatus('Não existem compromissos locais por enviar.');return;}
+  const batch=all.slice(0,50);
+  const question='Enviar '+batch.length+' tarefa(s) e compromisso(s) da Agenda RJP para o calendário principal de '+(account||'Google')+'?'
+   +'\n\nInclui título, data/hora e descrição. Notas sem data, deslocações e prevenções IP ficam de fora.'
+   +(all.length>batch.length?'\n\nSerão enviados os primeiros 50; poderás repetir depois.':'');
+  if(!window.confirm(question))return;
+  setBusy(true);
+  let ok=0;
+  let failed=0;
+  for(const item of batch){
+   try{
+    const googleEventId=await upsertGoogle(item);
+    setItems(prev=>prev.map(x=>x.id===item.id?{...x,googleEventId,addToGoogle:true}:x));
+    ok++;
+   }catch(error){
+    failed++;
+    setGoogleWriteStatus('Falha ao enviar «'+item.title+'»: '+error.message);
+    // Não insistir se a sessão expirou: evita pedidos desnecessários.
+    if(!googleConnected())break;
+   }
+  }
+  setBusy(false);
+  setGoogleWriteStatus(ok+' compromisso(s) enviado(s); '+failed+' falha(s). Os restantes mantêm-se na app.');
+  notify(ok+' compromisso(s) exportado(s) para o Google Calendar.');
+  if(ok)await refreshGoogle(true);
+ }
  async function googleConnect(){
   setBusy(true);setGoogleError('');
   let phase='login';
@@ -519,6 +573,12 @@ function App(){
       <div className="settings-card"><div className="settings-title"><Cloud size={21}/><h2>Google Calendar</h2>{connected&&<span className="connected-pill">Ligado</span>}</div>
        <p>Mostra eventos do teu calendário e permite adicionar compromissos após confirmação. A ligação exige credenciais OAuth do teu próprio projeto Google Cloud.</p>
        {connected?<><div className="account">{account}</div>
+        <p className="fineprint">Os eventos criados na Agenda RJP não são enviados por defeito sem a tua escolha. O destino é o calendário principal da conta acima.</p>
+        <div className="setting-line"><span>Tarefas/compromissos por enviar</span><strong>{googlePending.length}</strong></div>
+        <button type="button" className="primary-action stretch" disabled={busy||googlePending.length===0} onClick={syncPendingGoogle}><Cloud size={16}/> Enviar {googlePending.length} compromisso(s) para o Google</button>
+        <label className="toggle-line"><span><strong>Enviar automaticamente novos compromissos</strong><small>Quando a conta está ligada, pré-seleciona «Adicionar ao Google Calendar» nas novas tarefas e reuniões. Podes desmarcar antes de guardar. Não inclui notas ou módulos IP.</small></span>
+          <input type="checkbox" checked={autoGoogleNew} onChange={e=>{const yes=e.target.checked;setAutoGoogleNew(yes);localStorage.setItem('agenda-rjp-google-auto-new',yes?'1':'0')}}/></label>
+        {googleWriteStatus&&<p role="status" className="fineprint"><strong>Envio Google:</strong> {googleWriteStatus}</p>}
         <div className="setting-line"><span>Eventos lidos</span><strong>{googleCalendarInfo.loading?'A atualizar…':googleCalendarInfo.count}</strong></div>
         <div className="setting-line"><span>Calendários encontrados</span><strong>{googleCalendarInfo.calendars.length}</strong></div>
         {googleCalendarInfo.calendars.length>0&&<p className="fineprint">Calendários: {googleCalendarInfo.calendars.map(x=>x.summary||'Sem nome').join(' · ')}</p>}
