@@ -1,4 +1,4 @@
-name: RJP Daily — WebApp e APK Android
+name: Agenda RJP — WebApp e APK Android
 on:
   push:
     branches: [main, master]
@@ -57,6 +57,14 @@ jobs:
         run: npm test
       - name: Gerar projeto Android e aplicar permissões
         run: npm run android:prepare
+      - name: Confirmar nome nativo e identificador Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '<string name="app_name">Agenda RJP</string>' android/app/src/main/res/values/strings.xml
+          grep -Fq '<string name="title_activity_main">Agenda RJP</string>' android/app/src/main/res/values/strings.xml
+          grep -Fq '"appId": "pt.rjp.daily"' capacitor.config.json
+          echo 'Nome no launcher: Agenda RJP | Pacote: pt.rjp.daily'
       - name: Preparar assinatura estável (quando configurada)
         env:
           RJP_DAILY_KEYSTORE_B64: ${{ secrets.RJP_DAILY_KEYSTORE_B64 }}
