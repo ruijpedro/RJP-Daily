@@ -84,12 +84,22 @@ jobs:
             exit 1
           fi
           if [[ "$configured" -eq 4 ]]; then
-            printf '%s' "$RJP_DAILY_KEYSTORE_B64" | base64 --decode > "$GITHUB_WORKSPACE/android/app/rjp-release.jks"
-            # Confirmar integridade do certificado antes de iniciar a compilação Gradle.
-            keytool -list -v -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
+            if ! printf '%s' "$RJP_DAILY_KEYSTORE_B64" | base64 --decode > "$GITHUB_WORKSPACE/android/app/rjp-release.jks"; then
+              echo "::error::O segredo RJP_DAILY_KEYSTORE_B64 não contém Base64 válido."
+              exit 1
+            fi
+            # Validar o certificado, o alias e a palavra-passe sem imprimir dados sensíveis.
+            if ! keytool -list -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
+                -storepass "$RJP_DAILY_KEYSTORE_PASSWORD" -alias "$RJP_DAILY_KEY_ALIAS" >/dev/null 2>&1; then
+              echo "::error::Falha ao abrir o JKS: verifica o conteúdo Base64, a palavra-passe e o alias nos secrets."
+              exit 1
+            fi
+            echo "Certificado JKS e alias verificados."
+            # O fingerprint é público; a chave privada continua protegida.
+            keytool -exportcert -rfc -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
               -storepass "$RJP_DAILY_KEYSTORE_PASSWORD" -alias "$RJP_DAILY_KEY_ALIAS" \
-              | grep 'SHA1:' | head -n 1
-            echo "Certificado e alias validados. A compilar APK RELEASE."
+              | openssl x509 -noout -fingerprint -sha1
+            echo "A compilar APK RELEASE com assinatura permanente."
             echo "RJP_DAILY_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/rjp-release.jks" >> "$GITHUB_ENV"
             echo "RJP_DAILY_KEYSTORE_PASSWORD=$RJP_DAILY_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
             echo "RJP_DAILY_KEY_ALIAS=$RJP_DAILY_KEY_ALIAS" >> "$GITHUB_ENV"
