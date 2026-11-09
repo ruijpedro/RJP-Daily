@@ -447,6 +447,15 @@ function App(){
     </>}
     {tab==='agenda'&&<>
       <div className="page-intro"><div className="eyebrow">PLANEAMENTO</div><h1>Calendário</h1><p>Os teus compromissos e lembretes num só lugar.</p></div>
+      {connected&&<div className="google-calendar-summary" role="status">
+        <Cloud size={18}/>
+        <div className="google-calendar-summary-text">
+          <strong>{googleCalendarInfo.loading?'A atualizar Google Calendar…':googleCalendarInfo.count+' eventos Google · '+googleCalendarInfo.calendars.length+' calendários'}</strong>
+          {googleCalendarInfo.warning&&<small>{googleCalendarInfo.warning}</small>}
+          {googleCalendarInfo.error&&<small>Erro de leitura: {googleCalendarInfo.error}</small>}
+        </div>
+        <button type="button" aria-label="Atualizar Google Calendar" onClick={()=>refreshGoogle()}><RefreshCw size={17}/></button>
+      </div>
       <div className="month-card">
        <div className="month-heading"><button aria-label="Mês anterior" onClick={()=>shiftMonth(-1)}><ChevronLeft/></button><h2>{monthLabel}</h2><button aria-label="Mês seguinte" onClick={()=>shiftMonth(1)}><ChevronRight/></button></div>
        <div className="calendar-grid">{['S','T','Q','Q','S','S','D'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}
@@ -480,7 +489,13 @@ function App(){
       <div className="page-intro"><div className="eyebrow">PERSONALIZAÇÃO</div><h1>Definições</h1><p>Notificações, Google Calendar e segurança dos dados.</p></div>
       <div className="settings-card"><div className="settings-title"><Cloud size={21}/><h2>Google Calendar</h2>{connected&&<span className="connected-pill">Ligado</span>}</div>
        <p>Mostra eventos do teu calendário e permite adicionar compromissos após confirmação. A ligação exige credenciais OAuth do teu próprio projeto Google Cloud.</p>
-       {connected?<><div className="account">{account}</div><div className="settings-row"><button className="primary-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar</button></div></>:<>
+       {connected?<><div className="account">{account}</div>
+        <div className="setting-line"><span>Eventos lidos</span><strong>{googleCalendarInfo.loading?'A atualizar…':googleCalendarInfo.count}</strong></div>
+        <div className="setting-line"><span>Calendários encontrados</span><strong>{googleCalendarInfo.calendars.length}</strong></div>
+        {googleCalendarInfo.calendars.length>0&&<p className="fineprint">Calendários: {googleCalendarInfo.calendars.map(x=>x.summary||'Sem nome').join(' · ')}</p>}
+        {googleCalendarInfo.warning&&<p role="status" className="fineprint">{googleCalendarInfo.warning}</p>}
+        {googleCalendarInfo.error&&<p role="alert" className="fineprint">Erro ao consultar os calendários: {googleCalendarInfo.error}</p>}
+        <div className="settings-row"><button className="primary-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar</button></div></>:<>
         <label className="field-label" htmlFor="google-client">Client ID Web (Google OAuth)</label>
         <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
         <button type="button" className="light-action" onClick={()=>{setClientId(DEFAULT_GOOGLE_WEB_CLIENT_ID);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',DEFAULT_GOOGLE_WEB_CLIENT_ID)}}>Usar Client ID RJP Daily</button>
