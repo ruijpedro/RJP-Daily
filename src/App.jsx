@@ -20,6 +20,7 @@ import {
 } from './services/notifications.js';
 import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleSnapshot, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
+import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
@@ -35,7 +36,7 @@ const numericId=()=>Math.floor(100000000+Math.random()*1800000000);
 function emptyDraft(){return {title:'',details:'',kind:'tarefa',category:'Trabalho',when:'',addToGoogle:false,original:''};}
 function createDraft(source=''){return source ? {...emptyDraft(),...parsePtCommand(source),details:'',category:'Trabalho'} : emptyDraft();}
 
-function Card({item,onToggle,onEdit,onDelete,onOpenIP}){
+function Card({item,onToggle,onEdit,onDelete,onOpenIP,onSyncGoogle}){
  const fromGoogle=Boolean(item.fromGoogle);
  const fromIP=Boolean(item.fromIP);
  const overdue=item.when && !item.done && new Date(item.when)<new Date() && !fromGoogle;
@@ -43,7 +44,7 @@ function Card({item,onToggle,onEdit,onDelete,onOpenIP}){
  return <div className={`item-card ${item.done?'is-done':''}`}>
    <span className={`item-kind ${item.kind}`}><I size={18}/></span>
    <div className="item-info">
-    <div className="item-heading"><span className="item-title">{item.title}</span>{fromGoogle&&<span className="google-tag">Google</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}</div>
+    <div className="item-heading"><span className="item-title">{item.title}</span>{fromGoogle&&<span className="google-tag">Google</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}{!fromGoogle&&Boolean(item.googleEventId)&&<span className="google-tag">Enviado ao Google</span>}</div>
     {item.details&&<div className="item-details">{item.details}</div>}
     <div className="item-meta">
       <span>{item.category||'Agenda'}</span>
@@ -55,6 +56,7 @@ function Card({item,onToggle,onEdit,onDelete,onOpenIP}){
    {fromIP&&<button className="mini-btn" title="Abrir módulo IP" onClick={onOpenIP}><ChevronRight size={17}/></button>}
    {!fromGoogle&&!fromIP&&<div className="item-actions">
      {item.kind!=='nota'&&<button aria-label={item.done?'Reabrir tarefa':'Concluir tarefa'} title={item.done?'Reabrir':'Concluir'} onClick={()=>onToggle(item)} className="mini-btn">{item.done?<RotateCcw size={17}/>:<Check size={18}/>}</button>}
+     {item.when&&!item.googleEventId&&!item.done&&<button aria-label="Enviar ao Google Calendar" title="Enviar ao Google Calendar" onClick={()=>onSyncGoogle(item)} className="mini-btn"><Cloud size={16}/></button>}
      <button aria-label="Editar" title="Editar" onClick={()=>onEdit(item)} className="mini-btn"><Edit3 size={16}/></button>
      <button aria-label="Eliminar" title="Eliminar" onClick={()=>onDelete(item)} className="mini-btn danger"><Trash2 size={16}/></button>
    </div>}
@@ -81,6 +83,8 @@ function App(){
  const [toast,setToast]=useState('');
  const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID||DEFAULT_GOOGLE_WEB_CLIENT_ID);
  const [googleError,setGoogleError]=useState('');
+ const [googleWriteStatus,setGoogleWriteStatus]=useState('');
+ const [autoGoogleNew,setAutoGoogleNew]=useState(()=>localStorage.getItem('agenda-rjp-google-auto-new')==='1');
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
  const [remoteEvents,setRemoteEvents]=useState([]);
@@ -203,6 +207,7 @@ function App(){
 
  const professionalAgenda=useMemo(()=>makeProfessionalAgenda(ipData),[ipData]);
  const localOpen=useMemo(()=>items.filter(i=>!i.done),[items]);
+ const googlePending=useMemo(()=>googleExportCandidates(items),[items]);
  const visibleAll=useMemo(()=>{
   const known = new Set([...items.map(i=>i.googleEventId),...ipData.trips.map(i=>i.googleEventId),...ipData.guards.map(i=>i.googleEventId),...ipData.activities.map(i=>i.googleEventId)].filter(Boolean));
   const professionalIds=new Set(items.map(i=>i.linkedIPId).filter(Boolean));
@@ -212,7 +217,7 @@ function App(){
  const pending=useMemo(()=>items.filter(i=>i.kind==='tarefa'&&!i.done&&i.when&&new Date(i.when)<clock),[items,clock]);
  const upcoming=useMemo(()=>visibleAll.filter(i=>!i.done&&i.when&&new Date(i.when)>=clock).sort((a,b)=>new Date(a.when)-new Date(b.when)),[visibleAll,clock]);
  const applyFilters=(a)=>a.filter(i=>(filter==='Todos'||i.category===filter||filter==='Pendentes'&&!i.done)&&(search.trim()===''||`${i.title} ${i.details||''}`.toLocaleLowerCase('pt-PT').includes(search.trim().toLocaleLowerCase('pt-PT'))));
- const prepare=(text='')=>{setDraft(createDraft(text));setOriginalItem(null);setModal('editor');};
+ const prepare=(text='')=>{const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(connected&&autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');};
  const edit=(item)=>{setDraft({...emptyDraft(),...item,when:item.when?localDateTime(item.when):''});setOriginalItem(item);setModal('editor');};
  const updateDraft=(k,value)=>setDraft(prev=>({...prev,[k]:value}));
 
@@ -223,7 +228,7 @@ function App(){
   if(draft.kind==='nota' && when){notify('Notas não criam alertas: seleciona Tarefa ou Compromisso.');return;}
   if(when && new Date(when)<=new Date() && draft.kind!=='nota'){notify('Escolhe uma data/hora futura para o lembrete.');return;}
   const item={...emptyDraft(),...draft,title,details:(draft.details||'').trim(),when,
-   id:originalItem?.id||freshId(),notificationId:originalItem?.notificationId||numericId(),
+   id:originalItem?.id||freshId(),googleEventId:originalItem?.googleEventId||draft.googleEventId||null,notificationId:originalItem?.notificationId||numericId(),
    done:originalItem?.done||false,updatedAt:new Date().toISOString(),createdAt:originalItem?.createdAt||new Date().toISOString()};
   setBusy(true);
   try{
@@ -236,8 +241,8 @@ function App(){
    if(item.addToGoogle && item.when){
     if(!googleConnected())notify('Guardado localmente. Liga o Google Calendar para sincronizar este compromisso.');
     else {
-     try{const googleEventId=await upsertGoogle(item);setItems(prev=>prev.map(i=>i.id===item.id?{...i,googleEventId}:i));notify('Guardado e enviado ao Google Calendar.');await refreshGoogle(true);}
-     catch(e){notify(`Guardado localmente, mas o Google falhou: ${e.message}`);}
+     try{const googleEventId=await upsertGoogle(item);setItems(prev=>prev.map(i=>i.id===item.id?{...i,googleEventId}:i));setGoogleWriteStatus('Compromisso enviado com sucesso para o calendário principal da conta Google.');notify('Guardado e enviado ao Google Calendar.');await refreshGoogle(true);}
+     catch(e){setGoogleWriteStatus('Erro ao enviar: '+e.message);notify('Registo guardado na Agenda RJP; envio Google falhou. Consulta as Definições.');}
     }
    } else if (!Capacitor.isNativePlatform()) notify('Guardado. Na WebApp, os alertas com o navegador fechado não estão garantidos; usa a APK Android.');
    else if(result.scheduled)notify('Guardado com notificação agendada.');
@@ -330,7 +335,7 @@ function App(){
   if(query){const parsed=parsePtCommand(text);const d=parsed.when?new Date(parsed.when):new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');setModal(null);notify('Agenda aberta.');return;}
   const ip=parseIPVoice(text);
   if(ip){setIPVoice(ip);setTab('ip');setModal(null);return;}
-  setDraft(createDraft(text));setOriginalItem(null);setModal('editor');
+  const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(connected&&autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');
  }
  async function usePermissions(){
   const ok=await requestNotificationPermission();setPermissions(await permissionStatus());
@@ -356,7 +361,7 @@ function App(){
   kind:'evento', title:key==='trips'?`Deslocação IP: ${r.from} → ${r.to}`:key==='guards'?`Prevenção ${r.kind} · IP`: `${r.type||'Atividade'} · ${r.place||'IP'}`,
   details:[r.activity,r.notes,r.vehiclePlate&&`Viatura ${r.vehiclePlate}`].filter(Boolean).join(' · '),
   when:`${r.date}T${key==='trips'?(r.out||'09:00'):(r.start||'09:00')}`,
-  googleEventId:r.googleEventId||null
+  googleEventId:r.googleEventId||null,id:'ip-'+key+'-'+r.id
  });
  async function persistProfessional(key,record,previous=null){
   // A persistência local é sempre prioritária; as ligações externas são opcionais.
@@ -428,7 +433,7 @@ function App(){
  return <div className="app">
    <header className="topbar">
      <div className="brand-mark"><img className="brand-image" src="./icon-192.png" alt="RJP" /></div>
-     <div className="brand"><strong>RJP <span>Daily</span></strong><small>AGENDA & VOZ</small></div>
+     <div className="brand"><strong>Agenda <span>RJP</span></strong><small>AGENDA & VOZ</small></div>
      <div className="top-actions"><span className={`connection-indicator ${connected?'on':''}`} title={connected?'Google Calendar ligado':'Google Calendar desligado'}><Cloud size={18}/></span><button aria-label="Definições" className="header-icon" onClick={()=>setTab('definicoes')}><Settings2 size={20}/></button></div>
    </header>
    <main className="main">
@@ -441,9 +446,9 @@ function App(){
       </section>
       <button className="voice-hero" onClick={startVoice}><span className="voice-round"><Mic size={26}/></span><span><strong>O que precisas de registar?</strong><small>Toca e fala naturalmente em português.</small></span><span className="voice-chevron"><ChevronRight size={21}/></span></button>
       <div className="section-heading"><h2>Agenda de hoje</h2><button className="text-button" onClick={()=>setTab('agenda')}>Ver agenda <ChevronRight size={16}/></button></div>
-      {todays.length ? todays.sort((a,b)=>new Date(a.when)-new Date(b.when)).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>) : <div className="empty"><CalendarDays size={25}/><strong>Sem tarefas marcadas para hoje</strong><p>Adiciona um compromisso ou dita uma nova nota.</p></div>}
+      {todays.length ? todays.sort((a,b)=>new Date(a.when)-new Date(b.when)).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>) : <div className="empty"><CalendarDays size={25}/><strong>Sem tarefas marcadas para hoje</strong><p>Adiciona um compromisso ou dita uma nova nota.</p></div>}
       <div className="section-heading"><h2>Próximos compromissos e lembretes</h2><button className="text-button" onClick={()=>{setTab('tarefas');setFilter('Todos')}}>Ver todos <ChevronRight size={16}/></button></div>
-      {upcoming.slice(0,4).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>)}
+      {upcoming.slice(0,4).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {!upcoming.length&&<div className="empty compact">Ainda não tens lembretes futuros.</div>}
       <button className="ip-home-link" onClick={openProfessional}><CarFront size={20}/><span><b>Gestão profissional · IP_RJP</b><small>{ipData.trips.length} deslocações · {ipData.guards.length} prevenções · {ipData.activities.length} atividades</small></span><ChevronRight size={19}/></button>
       <button className="guard-home-link" onClick={openGuards}><ShieldCheck size={22}/><span><b>Prevenções BT / CC</b><small>Aceder aos registos da antiga IP_RJP · {ipData.guards.length} registadas</small></span><ChevronRight size={19}/></button>
@@ -476,7 +481,7 @@ function App(){
       </div>
       <div className="guard-calendar-legend"><span><i className="guard-indicator google"/> Google</span><span><i className="guard-indicator bt"/> Prevenção BT</span><span><i className="guard-indicator cc"/> Prevenção CC</span><span><i className="guard-indicator other"/> RJP</span></div>
       <div className="section-heading"><h2>{listDay.toLocaleDateString('pt-PT',{day:'numeric',month:'long'})}</h2>{connected&&<button className="text-button" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar</button>}</div>
-      {dayRows.length?dayRows.map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>):<div className="empty compact">Sem registos neste dia.</div>}
+      {dayRows.length?dayRows.map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>):<div className="empty compact">Sem registos neste dia.</div>}
       <button className="outline-full" onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(new Date(listDay.getFullYear(),listDay.getMonth(),listDay.getDate(),9,0))}))}}><Plus size={18}/> Adicionar compromisso neste dia</button>
       <div className="section-heading"><h2>Compromissos de {monthLabel}</h2><span className="counter">{monthEvents.length}</span></div>
       {monthlyGoogle.length>0&&<p className="monthly-google-count">Google Calendar: {monthlyGoogle.length} evento(s) neste mês. Os restantes eventos consultados podem ser de meses seguintes.</p>}
@@ -498,14 +503,14 @@ function App(){
       <div className="search"><Search size={18}/><input aria-label="Pesquisar tarefas" placeholder="Pesquisar por assunto, pessoa ou obra…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
       <div className="chips">{['Todos','Pendentes',...categories].map(f=><button key={f} className={filter===f?'selected':''} onClick={()=>setFilter(f)}>{f}</button>)}</div>
       <div className="section-heading"><h2>Tarefas registadas</h2><span className="counter">{applyFilters(items.filter(i=>i.kind==='tarefa'||i.kind==='evento')).length}</span></div>
-      {applyFilters(items.filter(i=>i.kind==='tarefa'||i.kind==='evento')).sort((a,b)=>Number(a.done)-Number(b.done)||(a.when&&b.when?new Date(a.when)-new Date(b.when):a.when?-1:b.when?1:0)).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>)}
+      {applyFilters(items.filter(i=>i.kind==='tarefa'||i.kind==='evento')).sort((a,b)=>Number(a.done)-Number(b.done)||(a.when&&b.when?new Date(a.when)-new Date(b.when):a.when?-1:b.when?1:0)).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {applyFilters(items.filter(i=>i.kind==='tarefa'||i.kind==='evento')).length===0&&<div className="empty compact">Nenhuma tarefa encontrada.</div>}
       <button className="outline-full" onClick={()=>prepare()}><Plus size={18}/> Adicionar tarefa</button>
     </>}
     {tab==='notas'&&<>
       <div className="page-intro"><div className="eyebrow">APONTAMENTOS</div><h1>Notas</h1><p>Informações ditadas ou escritas, sempre à mão.</p></div>
       <div className="search"><Search size={18}/><input aria-label="Pesquisar notas" placeholder="Pesquisar nas notas…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-      {items.filter(i=>i.kind==='nota'&&`${i.title} ${i.details||''}`.toLocaleLowerCase('pt-PT').includes(search.toLocaleLowerCase('pt-PT'))).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional}/>)}
+      {items.filter(i=>i.kind==='nota'&&`${i.title} ${i.details||''}`.toLocaleLowerCase('pt-PT').includes(search.toLocaleLowerCase('pt-PT'))).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {items.filter(i=>i.kind==='nota').length===0&&<div className="empty"><StickyNote size={25}/><strong>As tuas notas vão aparecer aqui</strong><p>Fala ou escreve aquilo de que precisas de te lembrar.</p></div>}
       <button className="outline-full" onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'nota'}))}}><Plus size={18}/> Nova nota</button>
     </>}
