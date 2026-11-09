@@ -22,6 +22,7 @@ import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected,
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
 import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
+import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
@@ -213,6 +214,9 @@ function App(){
   const professionalIds=new Set(items.map(i=>i.linkedIPId).filter(Boolean));
   return [...items,...professionalAgenda.filter(e=>!professionalIds.has(e.linkedId)),...remoteEvents.filter(e=>!known.has(e.googleEventId))];
  },[items,remoteEvents,professionalAgenda,ipData]);
+ // Reflete no launcher apenas títulos/horas, sem descrições, tokens ou NIF.
+ // Na APK antiga o plugin ainda não existe: o serviço ignora silenciosamente.
+ useEffect(()=>{void syncAgendaWidget(visibleAll,connected);},[visibleAll,connected]);
  const todays=useMemo(()=>visibleAll.filter(i=>i.when && dateKey(i.when)===dateKey(clock)&&!i.done),[visibleAll,clock]);
  const pending=useMemo(()=>items.filter(i=>i.kind==='tarefa'&&!i.done&&i.when&&new Date(i.when)<clock),[items,clock]);
  const upcoming=useMemo(()=>visibleAll.filter(i=>!i.done&&i.when&&new Date(i.when)>=clock).sort((a,b)=>new Date(a.when)-new Date(b.when)),[visibleAll,clock]);
@@ -352,7 +356,7 @@ function App(){
   }
   finally{setBusy(false)}
  }
- async function googleDisconnect(){await disconnectGoogle();setConnected(false);setAccount('');setRemoteEvents([]);notify('Conta Google desligada.');}
+ async function googleDisconnect(){await disconnectGoogle();await clearAgendaWidgetGoogle();setConnected(false);setAccount('');setRemoteEvents([]);notify('Conta Google desligada.');}
  async function startVoice(){
   if(listening)return;
   speechRef.current='';setSpeechText('');setListening(true);setModal('voice');
@@ -595,6 +599,12 @@ function App(){
         <p className="fineprint">Para a WebApp publicada em GitHub Pages, autoriza a origem JavaScript <code>https://ruijpedro.github.io</code>. Se usares outro domínio, adiciona essa origem.</p>
         <p className="fineprint"><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Abrir clientes OAuth Google Cloud</a> · <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Ativar Google Calendar API</a> · <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Adicionar conta de teste</a></p>
        </>}
+      </div>
+      <div className="settings-card">
+        <div className="settings-title"><CalendarDays size={21}/><h2>Widgets do ecrã inicial</h2></div>
+        <p>Na APK Android com widgets nativos, podes adicionar «Agenda RJP · Compacto» (2×2) e «Agenda RJP · Completo» (4×3) no ecrã inicial. Mantém premido um espaço vazio no ecrã inicial, escolhe Widgets e procura Agenda RJP.</p>
+        <p className="fineprint">Mostram os últimos compromissos sincronizados, incluindo os do Google Calendar, quando a conta estiver autorizada. Atualizam quando abres a app ou alteras registos; com a app fechada o Android pode atualizar a apresentação periodicamente a partir dos últimos dados guardados.</p>
+        <button type="button" className="light-action" onClick={async()=>{const ok=await syncAgendaWidget(visibleAll,connected);notify(ok?'Conteúdo dos widgets atualizado.':'Os widgets exigem a próxima APK nativa; não estão disponíveis nesta instalação.')}}><RefreshCw size={16}/> Atualizar widgets</button>
       </div>
       <div className="settings-card"><div className="settings-title"><Bell size={21}/><h2>Notificações Android</h2></div>
        <p>Os avisos, incluindo os de deslocações e prevenções, são agendados localmente na APK. A precisão depende das permissões de notificações e de alarmes do Android.</p>
