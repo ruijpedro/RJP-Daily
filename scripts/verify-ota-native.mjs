@@ -22,8 +22,14 @@ try {
   assert.ok(compareVersions(minNative, baseline.nativeVersion) >= 0, 'A versão mínima não pode anteceder a APK base');
   assert.ok(compareVersions(pkg.version, minNative) > 0, 'A versão OTA tem de ser superior à versão Android mínima');
   assert.deepEqual(deps, baseline.nativeDependencies, 'Dependências nativas mudaram: é necessária uma nova APK');
-  assert.deepEqual(capacitor, baseline.capacitorConfig, 'Configuração Capacitor mudou: é necessária uma nova APK');
-  assert.equal(patchSha, baseline.patchAndroidGitBlobSha, 'Configuração Android mudou: é necessária uma nova APK');
+  // O nome visto sob o ícone Android é cosmético: não altera plugins,
+  // armazenamento nem capacidades JS. A OTA funciona nas APKs antigas e novas.
+  const expectedConfig={...capacitor,appName:baseline.capacitorConfig.appName};
+  assert.deepEqual(expectedConfig,baseline.capacitorConfig,
+    'Configuração Capacitor mudou além do nome: é necessária uma nova APK');
+  const allowed=[baseline.patchAndroidGitBlobSha,...(baseline.allowedCosmeticPatchBlobShas||[])];
+  assert.ok(allowed.includes(patchSha),
+    'Script Android modificado fora das versões cosméticas auditadas: é necessária uma nova APK');
   console.log('Compatibilidade OTA validada: APK >= ' + minNative + ', bundle ' + pkg.version);
 } catch (err) {
   console.error('OTA bloqueada por segurança:', err.message);
