@@ -18,7 +18,7 @@ import {
   permissionStatus, requestNotificationPermission, requestExactSetting,
   scheduleItem, cancelItem, onNotificationAction, scheduleDailySummary, stopDailySummary
 } from './services/notifications.js';
-import { connectGoogle, disconnectGoogle, googleConnected, googleProfile, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
+import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
@@ -77,7 +77,7 @@ function App(){
  const [speechText,setSpeechText]=useState('');
  const speechRef=useRef(''); const recognition=useRef(null);const listener=useRef(null);
  const [toast,setToast]=useState('');
- const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||'');
+ const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID||'');
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
  const [remoteEvents,setRemoteEvents]=useState([]);
@@ -113,6 +113,33 @@ function App(){
   if(hasAndroidOta())void CapacitorApp.addListener('resume',()=>{void checkForOta({onStatus:status})}).then(h=>{if(mounted)listener=h;else void h.remove()}).catch(()=>{});
   return ()=>{mounted=false;clearInterval(timer);window.removeEventListener('online',online);if(listener)void listener.remove()};
  },[]);
+ // A sessão Google é recuperada em Android, sem guardar tokens no armazenamento local.
+ useEffect(()=>{
+  if(!Capacitor.isNativePlatform() || !clientId.trim())return;
+  let active=true;
+  void (async()=>{
+   const session=await restoreGoogleSession(clientId.trim());
+   if(!session || !active)return;
+   try{
+    const events=await getGoogleEvents();
+    if(active){setAccount(session.name);setConnected(true);setRemoteEvents(events);}
+   }catch(e){if(active){setConnected(false);setAccount('');setRemoteEvents([]);}}
+  })();
+  return ()=>{active=false};
+ },[]);
+ // O calendário Google acompanha o mês consultado na RJP Daily.
+ useEffect(()=>{
+  if(!connected)return;
+  let active=true;
+  void getGoogleEvents(new Date(listYear,listMonth,1))
+    .then(events=>{if(active)setRemoteEvents(events)})
+    .catch(error=>{
+      if(!active)return;
+      if(!googleConnected()){setConnected(false);setAccount('');setRemoteEvents([]);}
+      notify('Google Calendar: '+(error.message||'Falha ao carregar eventos'));
+    });
+  return ()=>{active=false};
+ },[connected,listYear,listMonth]);
  useEffect(()=>{saveItems(items);},[items]);
  useEffect(()=>{saveIP(ipData);},[ipData]);
  useEffect(()=>{const timer=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(timer);},[]);
@@ -230,10 +257,14 @@ function App(){
  async function googleConnect(){
   setBusy(true);
   try{
-   localStorage.setItem('rjp-daily-google-client-id',clientId.trim());
-   const u=await connectGoogle(clientId.trim());setConnected(true);setAccount(u.name);
-   const list=await getGoogleEvents();setRemoteEvents(list);notify('Google Calendar ligado.');
-  }catch(e){setConnected(googleConnected());notify(e.message||'Não foi possível ligar.');}
+   const id=clientId.trim();
+   const u=await connectGoogle(id);
+   // Só apresentar «Ligado» depois de uma chamada real à Google Calendar API.
+   const list=await getGoogleEvents();
+   localStorage.setItem('rjp-daily-google-client-id',id);
+   setAccount(u.name);setConnected(true);setRemoteEvents(list);
+   notify('Google Calendar ligado. Os teus compromissos estão disponíveis na agenda.');
+  }catch(e){setConnected(false);setRemoteEvents([]);notify(e.message||'Não foi possível ligar ao Google Calendar.');}
   finally{setBusy(false)}
  }
  async function googleDisconnect(){await disconnectGoogle();setConnected(false);setAccount('');setRemoteEvents([]);notify('Conta Google desligada.');}
@@ -428,7 +459,10 @@ function App(){
         <label className="field-label" htmlFor="google-client">Client ID Web (Google OAuth)</label>
         <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
         <button onClick={googleConnect} disabled={busy||!clientId.trim()} className="primary-action stretch"><Cloud size={17}/> {busy?'A ligar…':'Ligar conta Google'}</button>
-        <p className="fineprint">Necessário ativar a Calendar API, criar cliente OAuth Web e Android no Google Cloud e autorizar a conta. Consulta o README do ZIP.</p>
+        <p className="fineprint">Configuração única: no Google Cloud, ativa a Calendar API e cria clientes OAuth Web e Android. Usa o <b>Client ID Web</b> aqui na app. No cliente Android, indica <b>pt.rjp.daily</b> e a impressão digital SHA-1 da APK instalada.</p>
+        <p className="fineprint">Na versão de testes v1.1.5 que disponibilizámos, a SHA-1 é <code>13:11:9C:DD:39:F6:BB:7C:DD:D3:93:32:33:74:89:76:44:B9:5C:E5</code>. Se instalaste outra APK, a assinatura pode ser diferente.</p>
+        <p className="fineprint">Para a WebApp publicada em GitHub Pages, autoriza a origem JavaScript <code>https://ruijpedro.github.io</code>. Se usares outro domínio, adiciona essa origem.</p>
+        <p className="fineprint"><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Abrir clientes OAuth Google Cloud</a> · <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Ativar Google Calendar API</a> · <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Adicionar conta de teste</a></p>
        </>}
       </div>
       <div className="settings-card"><div className="settings-title"><Bell size={21}/><h2>Notificações Android</h2></div>
