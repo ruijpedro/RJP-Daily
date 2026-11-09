@@ -30,7 +30,7 @@ function applyResult(answer) {
     ? result.accessToken : result?.accessToken?.token;
   if(!fresh)return false;
   accessToken=fresh;
-  displayName=result?.profile?.name||result?.profile?.email||displayName||'Conta Google';
+  displayName=result?.profile?.email||result?.profile?.name||displayName||'Conta Google';
   return true;
 }
 
