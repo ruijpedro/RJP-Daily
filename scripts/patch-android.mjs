@@ -62,9 +62,13 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     public void IHaveModifiedTheMainActivityForTheUseWithSocialLoginPlugin() {}
 }
 `);
+const version=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version;
+const [major,minor,patch]=version.split('.').map(Number);
+if(!Number.isInteger(major)||!Number.isInteger(minor)||!Number.isInteger(patch))throw new Error('Versão semântica inválida: '+version);
+const versionCode=major*1000+minor*100+patch;
 const build=path.join(android,'app/build.gradle');
 let gradle=fs.readFileSync(build,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 1112').replace(/versionName\s+"[^"]+"/, 'versionName "1.1.12"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode '+versionCode).replace(/versionName\s+"[^"]+"/, 'versionName "'+version+'"');
 fs.writeFileSync(build,gradle);
 const signingTag='// RJP_DAILY_RELEASE_SIGNING_CONFIGURATION';
 if(!gradle.includes(signingTag)){
