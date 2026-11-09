@@ -1,6 +1,6 @@
 {
   "appId": "pt.rjp.daily",
-  "appName": "RJP Daily",
+  "appName": "Agenda RJP",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
