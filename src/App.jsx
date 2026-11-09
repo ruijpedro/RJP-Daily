@@ -455,7 +455,7 @@ function App(){
           {googleCalendarInfo.error&&<small>Erro de leitura: {googleCalendarInfo.error}</small>}
         </div>
         <button type="button" aria-label="Atualizar Google Calendar" onClick={()=>refreshGoogle()}><RefreshCw size={17}/></button>
-      </div>
+      </div>}
       <div className="month-card">
        <div className="month-heading"><button aria-label="Mês anterior" onClick={()=>shiftMonth(-1)}><ChevronLeft/></button><h2>{monthLabel}</h2><button aria-label="Mês seguinte" onClick={()=>shiftMonth(1)}><ChevronRight/></button></div>
        <div className="calendar-grid">{['S','T','Q','Q','S','S','D'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}
