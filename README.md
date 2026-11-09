@@ -1,8 +1,21 @@
-# Agenda RJP v1.1.12 — agenda por voz, calendário Google, gestão IP e OTA
+# Agenda RJP v1.1.13 — Widgets Android 2×2 e 4×3, Google Calendar e OTA
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
 A RJP Daily reúne a agenda pessoal e profissional com os módulos de **deslocações, prevenções BT/CC, atividades, viaturas e relatórios** da IP_RJP. Foi desenvolvida a partir do projeto RJP Daily v1.0 e dos requisitos reais encontrados no repositório `ruijpedro/IP_RJP` (versão 2.5.0); mantém a identidade `pt.rjp.daily` para preservar o armazenamento e permitir atualizações futuras com a **mesma chave de assinatura**.
+
+## Widgets Android (v1.1.13)
+
+A APK inclui dois widgets nativos que aparecem em **Ecrã inicial → Widgets → Agenda RJP**:
+
+- **Compacto (2×2):** data, total de compromissos de hoje e próximo compromisso.
+- **Completo (4×3):** data e próximos quatro compromissos (Google, RJP e gestão IP).
+- Ao tocar num widget, abre-se a Agenda RJP.
+- Os títulos e horários são sincronizados com o armazenamento Android do widget sempre que a app abre, os eventos são atualizados ou os registos mudam. O Android atualiza a apresentação do widget periodicamente (intervalo solicitado: 30 minutos). O widget funciona com os últimos dados sincronizados, mesmo quando a app está fechada; não faz chamadas Google em segundo plano.
+- Os widgets recebem apenas títulos, datas, horas e origem; não recebem detalhes dos registos, credenciais ou dados de autenticação.
+- Com a conta Google desligada por expiração da sessão, os últimos eventos Google persistem em cache local até nova autorização; ao desligar explicitamente a conta na app, os compromissos Google são retirados do widget.
+- **Instalação:** widgets nativos precisam de uma nova APK. Uma OTA, por si só, não instala componentes nativos; a versão WebApp ignora o plugin com segurança.
+- **Assinatura:** o GitHub Actions ainda está a gerar APK DEBUG quando não existem secrets de assinatura. Antes de instalar sobre uma versão existente, confirmar a compatibilidade da assinatura para não perder dados. A assinatura permanente e o cliente OAuth Android ficam para configurar no PC.
 
 ## Agenda RJP — nome novo e envio de eventos Google (v1.1.12)
 
