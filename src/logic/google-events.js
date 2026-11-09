@@ -7,10 +7,17 @@ export function googleEventPayload(item){
   return {summary:item.title,description:`Criado pela RJP Daily.\n${item.details||''}`,
     start:dateObj(start),end:dateObj(end)};
 }
-export function normalizeGoogleEvents(events){
-  return (Array.isArray(events)?events:[]).filter(e=>e?.status!=='cancelled').map(e=>({
-    id:'google:'+e.id,googleEventId:e.id,kind:'evento',title:e.summary||'(Sem título)',
+/** Um calendário secundário pode conter IDs de eventos iguais ao principal. */
+export function normalizeGoogleEvents(events,calendar={}){
+  return (Array.isArray(events)?events:[]).filter(e=>e?.status!=='cancelled' && e?.id).map(e=>({
+    id:'google:'+encodeURIComponent(calendar.id||'primary')+':'+e.id,
+    googleEventId:e.id,calendarId:calendar.id||'primary',calendarName:calendar.summary||'Google Calendar',
+    kind:'evento',title:e.summary||'(Sem título)',
     details:e.description||'',when:e.start?.dateTime||e.start?.date||'',
     fromGoogle:true,allDay:!e.start?.dateTime
   }));
+}
+export function visibleGoogleCalendars(calendars){
+  return (Array.isArray(calendars)?calendars:[])
+    .filter(c=>c?.id && c.hidden!==true && c.selected!==false);
 }
