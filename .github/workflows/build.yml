@@ -75,6 +75,14 @@ jobs:
         run: |
           set -euo pipefail
           # Não aceitar uma assinatura incompleta em silêncio.
+          # Os .txt do kit terminam com newline. Remover apenas espaços
+          # periféricos copiados para os secrets, sem modificar a chave privada.
+          for variable in RJP_DAILY_KEYSTORE_B64 RJP_DAILY_KEYSTORE_PASSWORD RJP_DAILY_KEY_ALIAS RJP_DAILY_KEY_PASSWORD; do
+            value="${!variable:-}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            printf -v "$variable" '%s' "$value"
+          done
           configured=0
           for variable in RJP_DAILY_KEYSTORE_B64 RJP_DAILY_KEYSTORE_PASSWORD RJP_DAILY_KEY_ALIAS RJP_DAILY_KEY_PASSWORD; do
             if [[ -n "${!variable:-}" ]]; then configured=$((configured+1)); fi
@@ -96,9 +104,14 @@ jobs:
             fi
             echo "Certificado JKS e alias verificados."
             # O fingerprint é público; a chave privada continua protegida.
-            keytool -exportcert -rfc -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
+            fingerprint=$(keytool -exportcert -rfc -keystore "$GITHUB_WORKSPACE/android/app/rjp-release.jks" \
               -storepass "$RJP_DAILY_KEYSTORE_PASSWORD" -alias "$RJP_DAILY_KEY_ALIAS" \
-              | openssl x509 -noout -fingerprint -sha1
+              | openssl x509 -noout -fingerprint -sha1 | cut -d= -f2)
+            echo "SHA1 da assinatura permanente: $fingerprint"
+            if [[ "$fingerprint" != '44:A9:52:9D:66:07:0C:4D:29:BA:0B:22:33:94:11:63:A6:C7:30:75' ]]; then
+              echo "::error::O JKS não corresponde ao certificado permanente esperado da Agenda RJP."
+              exit 1
+            fi
             echo "A compilar APK RELEASE com assinatura permanente."
             echo "RJP_DAILY_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/rjp-release.jks" >> "$GITHUB_ENV"
             echo "RJP_DAILY_KEYSTORE_PASSWORD=$RJP_DAILY_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
