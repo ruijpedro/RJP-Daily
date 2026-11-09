@@ -19,6 +19,7 @@ import {
   scheduleItem, cancelItem, onNotificationAction, scheduleDailySummary, stopDailySummary
 } from './services/notifications.js';
 import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
+import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
@@ -77,7 +78,8 @@ function App(){
  const [speechText,setSpeechText]=useState('');
  const speechRef=useRef(''); const recognition=useRef(null);const listener=useRef(null);
  const [toast,setToast]=useState('');
- const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID||'');
+ const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID||DEFAULT_GOOGLE_WEB_CLIENT_ID);
+ const [googleError,setGoogleError]=useState('');
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
  const [remoteEvents,setRemoteEvents]=useState([]);
@@ -255,16 +257,23 @@ function App(){
   catch(e){notify(`Não foi possível obter a agenda: ${e.message}`);setConnected(googleConnected());}
  }
  async function googleConnect(){
-  setBusy(true);
+  setBusy(true);setGoogleError('');
+  let phase='login';
   try{
    const id=clientId.trim();
    const u=await connectGoogle(id);
+   phase='calendar';
    // Só apresentar «Ligado» depois de uma chamada real à Google Calendar API.
    const list=await getGoogleEvents();
    localStorage.setItem('rjp-daily-google-client-id',id);
    setAccount(u.name);setConnected(true);setRemoteEvents(list);
    notify('Google Calendar ligado. Os teus compromissos estão disponíveis na agenda.');
-  }catch(e){setConnected(false);setRemoteEvents([]);notify(e.message||'Não foi possível ligar ao Google Calendar.');}
+  }catch(e){
+   const diagnostic=describeGoogleLoginFailure(e,phase);
+   setGoogleError(diagnostic);
+   setConnected(false);setAccount('');setRemoteEvents([]);
+   notify('Falha ao ligar o Google Calendar. Vê a explicação em Definições.');
+  }
   finally{setBusy(false)}
  }
  async function googleDisconnect(){await disconnectGoogle();setConnected(false);setAccount('');setRemoteEvents([]);notify('Conta Google desligada.');}
@@ -457,8 +466,10 @@ function App(){
        <p>Mostra eventos do teu calendário e permite adicionar compromissos após confirmação. A ligação exige credenciais OAuth do teu próprio projeto Google Cloud.</p>
        {connected?<><div className="account">{account}</div><div className="settings-row"><button className="primary-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar</button></div></>:<>
         <label className="field-label" htmlFor="google-client">Client ID Web (Google OAuth)</label>
-        <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
+        <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
+        <button type="button" className="light-action" onClick={()=>{setClientId(DEFAULT_GOOGLE_WEB_CLIENT_ID);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',DEFAULT_GOOGLE_WEB_CLIENT_ID)}}>Usar Client ID RJP Daily</button>
         <button onClick={googleConnect} disabled={busy||!clientId.trim()} className="primary-action stretch"><Cloud size={17}/> {busy?'A ligar…':'Ligar conta Google'}</button>
+        {googleError&&<div role="alert" className="fineprint"><strong>Diagnóstico de ligação:</strong> {googleError}<p>Confirma a SHA-1 da APK instalada, o pacote pt.rjp.daily e os utilizadores de teste do Google Cloud. Se não resolver, envia uma imagem desta mensagem (sem tokens ou Client Secret).</p></div>}
         <p className="fineprint">Configuração única: no Google Cloud, ativa a Calendar API e cria clientes OAuth Web e Android. Usa o <b>Client ID Web</b> aqui na app. No cliente Android, indica <b>pt.rjp.daily</b> e a impressão digital SHA-1 da APK instalada.</p>
         <p className="fineprint">Na versão de testes v1.1.5 que disponibilizámos, a SHA-1 é <code>13:11:9C:DD:39:F6:BB:7C:DD:D3:93:32:33:74:89:76:44:B9:5C:E5</code>. Se instalaste outra APK, a assinatura pode ser diferente.</p>
         <p className="fineprint">Para a WebApp publicada em GitHub Pages, autoriza a origem JavaScript <code>https://ruijpedro.github.io</code>. Se usares outro domínio, adiciona essa origem.</p>
