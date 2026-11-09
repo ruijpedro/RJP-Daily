@@ -1,8 +1,18 @@
-# RJP Daily v1.1.10 — Google Calendar multi-agenda, voz, gestão IP e OTA
+# RJP Daily v1.1.11 — Agenda Google visível no calendário, gestão IP e OTA
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
 A RJP Daily reúne a agenda pessoal e profissional com os módulos de **deslocações, prevenções BT/CC, atividades, viaturas e relatórios** da IP_RJP. Foi desenvolvida a partir do projeto RJP Daily v1.0 e dos requisitos reais encontrados no repositório `ruijpedro/IP_RJP` (versão 2.5.0); mantém a identidade `pt.rjp.daily` para preservar o armazenamento e permitir atualizações futuras com a **mesma chave de assinatura**.
+
+## Calendário mensal com eventos Google visíveis — v1.1.11
+
+- A ligação Google já lê eventos de várias agendas. Esta correção resolve a apresentação: a grelha mostra contadores e uma marca Google nos dias com compromissos, e surge uma lista completa dos eventos do mês por baixo do calendário.
+- A vista Calendário não herda agora filtros nem pesquisas do separador Tarefas. Esses filtros escondiam eventos que já estavam carregados.
+- Eventos de dia inteiro e eventos que duram vários dias são apresentados nas datas corretas, respeitando o fuso Europe/Lisbon e o fim exclusivo da API Google.
+- Diferencia compromissos Google, registos profissionais IP e prevenções BT/CC. É possível tocar numa linha da lista mensal para selecionar o dia.
+- A contagem Google em Definições pode abranger o mês selecionado e o seguinte; a nova lista mensal permite perceber quais os eventos do mês em visualização.
+- Segurança: nomes de calendários subscritos com URLs privadas ou parâmetros de autenticação são mostrados sem essas URLs na interface. Se alguma URL de subscrição com token tiver sido partilhada fora da tua conta, regenera-a no serviço de origem.
+- OTA web compatível com a APK v1.1.5. Mantém dados locais, Google OAuth e funcionalidades profissionais.
 
 ## Google Calendar com múltiplas agendas — v1.1.10
 
