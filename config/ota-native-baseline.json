@@ -42,5 +42,8 @@
       }
     }
   },
-  "patchAndroidGitBlobSha": "2b9c5e2fc8b9ab179f2369600d9d0a7b81a9b8c6"
+  "patchAndroidGitBlobSha": "2b9c5e2fc8b9ab179f2369600d9d0a7b81a9b8c6",
+  "allowedCosmeticPatchBlobShas": [
+    "6ce19dbf3652cc8a3724ed2972cfa8f33ffec460"
+  ]
 }
