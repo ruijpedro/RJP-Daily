@@ -53,3 +53,20 @@
 .google-calendar-summary-text{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;font-size:13px;line-height:1.4}
 .google-calendar-summary-text small{font-size:12px;color:#49655e}
 .google-calendar-summary>button{border:0;background:#d2eee7;color:#125c50;padding:7px;border-radius:9px;display:grid;place-items:center}
+
+/* Vista mensal: assinalar Google explicitamente e deixar todos os eventos consultáveis. */
+.calendar-grid .day-cell{height:52px;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:8px}
+.calendar-grid .day-cell .day-indicators{bottom:5px}
+.calendar-grid .day-cell .day-count{position:absolute;top:2px;right:2px;font-size:9px;color:#236d87;background:#e5f0f9;border-radius:7px;min-width:13px;line-height:13px;padding:0 2px}
+.calendar-grid .day-cell.selected .day-count{color:#085d52;background:#f1fffb}
+.guard-indicator.google{background:#4678d2}
+.monthly-google-count{font-size:12px;color:#607f8e;margin:4px 0 10px}
+.month-events-list{border:1px solid #e2eaee;border-radius:15px;background:#fff;max-height:390px;overflow-y:auto;overscroll-behavior:contain}
+.month-event-row{display:flex;gap:9px;padding:11px 12px;align-items:center;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid #edf2f3;color:#253a46}
+.month-event-row:last-child{border-bottom:0}
+.month-event-row:focus-visible{outline-offset:-3px}
+.month-event-date{width:74px;flex:0 0 74px;font-size:10px;color:#34778b;font-weight:750;font-variant-numeric:tabular-nums}
+.month-event-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.month-event-body strong{font-size:12px;line-height:1.3;overflow-wrap:anywhere}
+.month-event-body small{font-size:10px;color:#7a8e99;overflow-wrap:anywhere}
+@media(max-width:390px){.month-event-date{width:62px;flex-basis:62px}.calendar-grid .day-cell{height:49px}}
