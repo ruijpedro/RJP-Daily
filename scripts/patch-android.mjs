@@ -26,6 +26,7 @@ fs.mkdirSync(javaDir,{recursive:true});
 fs.writeFileSync(path.join(javaDir,'MainActivity.java'),`package pt.rjp.daily;
 
 import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Plugin;
@@ -35,6 +36,11 @@ import ee.forgr.capacitor.social.login.ModifiedMainActivityForSocialLoginPlugin;
 import ee.forgr.capacitor.social.login.SocialLoginPlugin;
 
 public class MainActivity extends BridgeActivity implements ModifiedMainActivityForSocialLoginPlugin {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(AgendaWidgetPlugin.class);
+        super.onCreate(savedInstanceState);
+    }
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -93,5 +99,43 @@ for(const name of ['ic_launcher.xml','ic_launcher_round.xml']){
 </adaptive-icon>
 `);
 }
+
+// Os widgets Android fazem parte da APK: são instalados apenas no build nativo.
+// Os ficheiros-fonte ficam versionados; não se perdem quando "cap add android" recria a pasta.
+const widgetRoot=path.join(root,'native-widget');
+if(!fs.existsSync(widgetRoot))throw new Error('Fontes dos widgets Android em falta.');
+for(const source of fs.readdirSync(path.join(widgetRoot,'java'))){
+ if(!source.endsWith('.java'))continue;
+ fs.copyFileSync(path.join(widgetRoot,'java',source),path.join(javaDir,source));
+}
+const widgetRes=path.join(widgetRoot,'res');
+for(const type of fs.readdirSync(widgetRes)){
+ const source=path.join(widgetRes,type);
+ const dest=path.join(resPath,type);
+ fs.mkdirSync(dest,{recursive:true});
+ for(const name of fs.readdirSync(source)){
+  fs.copyFileSync(path.join(source,name),path.join(dest,name));
+ }
+}
+const widgetReceivers=[
+ ['AgendaCompactWidget','widget_agenda_compact_info'],
+ ['AgendaFullWidget','widget_agenda_full_info'],
+];
+const receiverXml=widgetReceivers.map(([klass,info])=>
+  '        <receiver android:name=".'
+  +klass+'" android:exported="true" android:label="Agenda RJP · '
+  +(klass==='AgendaCompactWidget'?'Compacto 2×2':'Completo 4×3')
+  +'">\n'
+  +'            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>\n'
+  +'            <meta-data android:name="android.appwidget.provider" android:resource="@xml/'
+  +info+'" />\n'
+  +'        </receiver>'
+).join('\n');
+if(!manifest.includes('android:name=".AgendaCompactWidget"')){
+ manifest=manifest.replace('</application>',receiverXml+'\n    </application>');
+ if(!manifest.includes('android:name=".AgendaCompactWidget"'))throw new Error('Não foi possível declarar os widgets no AndroidManifest.');
+ fs.writeFileSync(manifestPath,manifest);
+}
+console.log('Agenda RJP: widgets nativos compacto (2×2) e completo (4×3) configurados.');
 
 console.log('MainActivity, permissões, assinatura e novos ícones Agenda RJP aplicados.');
