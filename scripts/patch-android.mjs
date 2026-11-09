@@ -12,6 +12,15 @@ for(const p of permissions){
  }
 }
 fs.writeFileSync(manifestPath,manifest);
+const stringsFile=path.join(android,'app/src/main/res/values/strings.xml');
+let strings=fs.readFileSync(stringsFile,'utf8');
+for(const tag of ['app_name','title_activity_main']){
+  const exp=new RegExp('(<string\\s+name="'+tag+'"[^>]*>)[^<]*(<\\/string>)');
+  if(!exp.test(strings))throw new Error('Etiqueta Android ausente: '+tag);
+  strings=strings.replace(exp,'$1Agenda RJP$2');
+}
+fs.writeFileSync(stringsFile,strings);
+
 const javaDir=path.join(android,'app/src/main/java/pt/rjp/daily');
 fs.mkdirSync(javaDir,{recursive:true});
 fs.writeFileSync(path.join(javaDir,'MainActivity.java'),`package pt.rjp.daily;
@@ -33,7 +42,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
             requestCode < GoogleProvider.REQUEST_AUTHORIZE_GOOGLE_MAX) {
             PluginHandle pluginHandle = getBridge().getPlugin("SocialLogin");
             if (pluginHandle == null) {
-                Log.w("RJP Daily", "Plugin SocialLogin não encontrado");
+                Log.w("Agenda RJP", "Plugin SocialLogin não encontrado");
                 return;
             }
             Plugin plugin = pluginHandle.getInstance();
@@ -49,7 +58,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
 `);
 const build=path.join(android,'app/build.gradle');
 let gradle=fs.readFileSync(build,'utf8');
-gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 1105').replace(/versionName\s+"[^"]+"/, 'versionName "1.1.5"');
+gradle=gradle.replace(/versionCode\s+\d+/, 'versionCode 1112').replace(/versionName\s+"[^"]+"/, 'versionName "1.1.12"');
 fs.writeFileSync(build,gradle);
 const signingTag='// RJP_DAILY_RELEASE_SIGNING_CONFIGURATION';
 if(!gradle.includes(signingTag)){
@@ -85,4 +94,4 @@ for(const name of ['ic_launcher.xml','ic_launcher_round.xml']){
 `);
 }
 
-console.log('MainActivity, permissões, assinatura e novos ícones RJP Daily aplicados.');
+console.log('MainActivity, permissões, assinatura e novos ícones Agenda RJP aplicados.');
