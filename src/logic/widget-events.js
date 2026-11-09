@@ -1,0 +1,31 @@
+import {calendarDayKey} from './calendar-view.js';
+
+const timeFormatter=new Intl.DateTimeFormat('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit',hour12:false});
+const DATE=/^\d{4}-\d{2}-\d{2}$/;
+
+/** Dados mínimos, sem notas, credenciais ou identificadores de contas Google. */
+export function agendaWidgetEvents(items,now=new Date()){
+  const today=calendarDayKey(now);
+  const max=new Date(now.getTime()+21*86400000);
+  const endDay=calendarDayKey(max);
+  const seen=new Set();
+  return (Array.isArray(items)?items:[])
+    .filter(i=>i?.when && !i.done && i.kind!=='nota')
+    .map(i=>{
+      const date=calendarDayKey(i.when);
+      const allDay=Boolean(i.allDay || typeof i.when==='string'&&DATE.test(i.when));
+      const stamp=allDay?Date.parse(date+'T12:00:00Z'):new Date(i.when).getTime();
+      return {date,allDay,timestamp:stamp,
+        title:String(i.title||'Compromisso').trim().slice(0,140),
+        time:allDay?'':timeFormatter.format(new Date(stamp)),
+        source:i.fromGoogle?'Google':i.fromIP?'IP':'RJP'};
+    })
+    .filter(x=>x.date>=today && x.date<=endDay && Number.isFinite(x.timestamp))
+    .filter(x=>{
+      const key=x.date+'|'+x.timestamp+'|'+x.title+'|'+x.source;
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    })
+    .sort((a,b)=>a.timestamp-b.timestamp)
+    .slice(0,50);
+}
