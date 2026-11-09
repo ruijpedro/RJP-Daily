@@ -44,27 +44,17 @@ export async function connectGoogle(clientId) {
   return {name:displayName};
 }
 
-/** Restaurar sessão apenas em Android; Web necessita de nova autorização após recarregar. */
+/** O plugin v8 devolve void em refresh(); logo, não fornece um novo
+ * accessToken ao JS numa restauração silenciosa. Não afirmar ligação falsa.
+ * O novo token é solicitado através do botão de autorização do utilizador. */
 export async function restoreGoogleSession(clientId){
   if(!Capacitor.isNativePlatform() || !clientId || !clientIsValid(clientId))return null;
   try {
     await initialize(clientId);
-    const state=await SocialLogin.isLoggedIn({provider:'google'});
-    if(!state?.isLoggedIn)return null;
-    const refreshed=await SocialLogin.refresh({provider:'google',options:{}});
-    return applyResult(refreshed)?{name:displayName}:null;
-  } catch {
-    accessToken=null;
-    return null;
-  }
-}
-
-async function refreshAccess(){
-  if(!Capacitor.isNativePlatform())return false;
-  try {
-    const refreshed=await SocialLogin.refresh({provider:'google',options:{}});
-    return applyResult(refreshed);
-  }catch{return false}
+    // O estado nativo pode estar válido, mas não prova acesso ao Calendar.
+    await SocialLogin.isLoggedIn({provider:'google'});
+  }catch{}
+  return null;
 }
 
 export async function disconnectGoogle(){
@@ -74,15 +64,15 @@ export async function disconnectGoogle(){
 export function googleConnected(){return Boolean(accessToken)}
 export function googleProfile(){return displayName}
 
-/** Uma repetição após HTTP 401 com refresh nativo; no browser pede novo login. */
-async function request(path,options={},retried=false){
+/** O plugin v8 não devolve o token após refresh; em HTTP 401
+ * pedir nova autorização em vez de tentar novamente com token expirado. */
+async function request(path,options={}){
   if(!accessToken)throw new Error('Liga primeiro a conta Google.');
   const response=await fetch('https://www.googleapis.com/calendar/v3'+path,{
     ...options,
     headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json',...options.headers}
   });
   if(response.status===401){
-    if(!retried && await refreshAccess())return request(path,options,true);
     accessToken=null;
     throw new Error('A autorização Google expirou. Volta a ligar a conta.');
   }
