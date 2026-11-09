@@ -46,3 +46,10 @@
 .bottom-nav{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;justify-content:flex-start}
 .bottom-nav::-webkit-scrollbar{display:none}.bottom-nav button{flex:1 0 63px;min-width:63px}
 @media(max-width:420px){.bottom-nav button{flex:1 0 62px;min-width:62px}.guard-quick-buttons button{padding:10px 5px;font-size:10px}}
+
+
+/* Google Calendar: diagnóstico compacto entre título e vista mensal. */
+.google-calendar-summary{margin:12px 18px 15px;padding:13px 14px;border:1px solid #a8d9d0;border-radius:14px;background:#eaf8f5;color:#145448;display:flex;align-items:flex-start;gap:10px}
+.google-calendar-summary-text{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;font-size:13px;line-height:1.4}
+.google-calendar-summary-text small{font-size:12px;color:#49655e}
+.google-calendar-summary>button{border:0;background:#d2eee7;color:#125c50;padding:7px;border-radius:9px;display:grid;place-items:center}
