@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.13 — Widgets Android 2×2 e 4×3, Google Calendar e OTA
+# Agenda RJP v1.1.14 — Widgets com atalhos e cores
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -197,3 +197,8 @@ Origem dos requisitos: repositório [IP_RJP](https://github.com/ruijpedro/IP_RJP
 **Recuperação:** se uma versão OTA falhar ao inicializar, o Capacitor Updater pode reverter para o bundle anterior; mantém sempre cópias de segurança dos dados profissionais. Se forem necessários novos plugins, atualiza a baseline apenas depois de publicares uma APK assinada e instalada com esses plugins.
 
 Documentação técnica do componente: https://capgo.app/docs/plugins/updater/api/ e https://capgo.app/docs/cli/commands/.
+
+## v1.1.14 — Widgets
+- Datas curtas, próximo compromisso futuro e cores por tipo.
+- Widget 4×3: + abre o editor, VOZ abre o ditado e ABRIR abre a agenda.
+- Requer nova APK assinada (não OTA). Os dados Google continuam a ser os últimos sincronizados na app; sem chamadas Google autónomas em segundo plano.

@@ -11,6 +11,14 @@
         <TextView android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:text="AGENDA RJP"
             android:textColor="#6EE0C9" android:textStyle="bold" android:textSize="14sp"/>
+        <TextView android:id="@+id/widget_add" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="+"
+            android:contentDescription="Criar compromisso" android:padding="8dp"
+            android:textStyle="bold" android:textSize="19sp" android:textColor="#6EE0C9"/>
+        <TextView android:id="@+id/widget_voice" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="VOZ"
+            android:contentDescription="Ditar compromisso" android:padding="6dp"
+            android:textStyle="bold" android:textSize="11sp" android:textColor="#6EE0C9"/>
         <TextView android:id="@+id/widget_open" android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:text="ABRIR  ›"
             android:padding="4dp" android:textColor="#9ED5CC" android:textSize="11sp"/>

@@ -395,6 +395,29 @@ function App(){
   if(ip){setIPVoice(ip);setTab('ip');setModal(null);return;}
   const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(connected&&autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');
  }
+ // Atalhos do widget: URI explícito Android, validado no arranque e em execução.
+ const widgetActionRef=useRef(null);
+ widgetActionRef.current=(action)=>{
+   const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
+   if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(connected&&autoGoogleNew)}));}
+   else if(action==='voice'){void startVoice();}
+ };
+ useEffect(()=>{
+   if(Capacitor.getPlatform()!=='android')return;
+   let active=true,subscription=null,lastUrl='',lastAt=0;
+   const handle=({url}={})=>{
+     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice)$/.test(url||''))return;
+     if(url===lastUrl&&Date.now()-lastAt<1500)return;
+     lastUrl=url;lastAt=Date.now();
+     widgetActionRef.current?.(url.split('/').pop());
+   };
+   void (async()=>{
+     subscription=await CapacitorApp.addListener('appUrlOpen',handle);
+     if(!active){await subscription.remove();return;}
+     const launch=await CapacitorApp.getLaunchUrl();if(launch)handle(launch);
+   })().catch(()=>{});
+   return ()=>{active=false;void subscription?.remove();};
+ },[]);
  async function usePermissions(){
   const ok=await requestNotificationPermission();setPermissions(await permissionStatus());
   notify(ok?'Permissão para notificações concedida.':'Notificações não autorizadas.');

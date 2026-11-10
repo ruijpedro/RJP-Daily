@@ -5,6 +5,8 @@ import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.net.Uri;
 import android.widget.RemoteViews;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -48,14 +50,13 @@ final class WidgetRenderer {
     private static RemoteViews render(Context context, boolean full) {
         RemoteViews view = new RemoteViews(context.getPackageName(),
             full ? R.layout.widget_agenda_full : R.layout.widget_agenda_compact);
-        Intent open = new Intent(context, MainActivity.class);
-        open.setAction(Intent.ACTION_MAIN);
-        open.addCategory(Intent.CATEGORY_LAUNCHER);
-        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent click = PendingIntent.getActivity(context, 4504, open,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent click = widgetIntent(context, "agenda", 4504);
         view.setOnClickPendingIntent(R.id.widget_root, click);
-        if (full) view.setOnClickPendingIntent(R.id.widget_open, click);
+        if (full) {
+            view.setOnClickPendingIntent(R.id.widget_open, click);
+            view.setOnClickPendingIntent(R.id.widget_add, widgetIntent(context, "new", 4505));
+            view.setOnClickPendingIntent(R.id.widget_voice, widgetIntent(context, "voice", 4506));
+        }
 
         long now = System.currentTimeMillis();
         String today = format(now, "yyyy-MM-dd");
@@ -75,7 +76,8 @@ final class WidgetRenderer {
                 String day = e.optString("date", "");
                 if (at <= 0 || day.isEmpty()) continue;
                 if (today.equals(day)) todayCount++;
-                if (day.compareTo(today) >= 0) entries.add(e);
+                if (day.compareTo(today) > 0 || (today.equals(day) &&
+                    (e.optBoolean("allDay", false) || at >= now))) entries.add(e);
             }
         } catch (Exception ignored) {
             // Uma atualização parcial não deve provocar crash no launcher.
@@ -93,14 +95,16 @@ final class WidgetRenderer {
             } else {
                 JSONObject next = entries.get(0);
                 view.setTextViewText(R.id.widget_next, next.optString("title", "Compromisso"));
-                view.setTextViewText(R.id.widget_meta, itemMeta(next));
+                view.setTextViewText(R.id.widget_meta, itemMeta(next, now, true));
+                view.setTextColor(R.id.widget_meta, itemColor(next));
             }
         } else {
             int[] rowIds = {R.id.widget_row_1,R.id.widget_row_2,R.id.widget_row_3,R.id.widget_row_4};
             for (int i = 0; i < rowIds.length; i++) {
                 if (i < entries.size()) {
                     JSONObject e = entries.get(i);
-                    view.setTextViewText(rowIds[i], itemMeta(e) + "   " + e.optString("title", "Compromisso"));
+                    view.setTextViewText(rowIds[i], itemMeta(e, now, false) + "  ·  " + e.optString("title", "Compromisso"));
+                    view.setTextColor(rowIds[i], itemColor(e));
                 } else if (i == 0) {
                     view.setTextViewText(rowIds[i], updatedAt == 0L ?
                         "Abre a app para carregar a agenda." : "Sem compromissos para os próximos dias.");
@@ -116,11 +120,26 @@ final class WidgetRenderer {
         return view;
     }
 
-    private static String itemMeta(JSONObject event) {
-        String when = event.optBoolean("allDay", false) ?
-            event.optString("date", "") : event.optString("date", "") + " " + event.optString("time", "");
-        if (event.optBoolean("allDay", false)) when += " · dia inteiro";
-        String source = event.optString("source", "");
-        return when + (source.isEmpty() ? "" : " · " + source);
+    private static PendingIntent widgetIntent(Context context, String action, int request) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("agenda-rjp://widget/" + action), context, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(context, request, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+    private static String itemMeta(JSONObject event, long now, boolean compact) {
+        String day = event.optString("date","").equals(format(now,"yyyy-MM-dd")) ? "Hoje" : format(event.optLong("timestamp",0),"d MMM");
+        String time = event.optBoolean("allDay",false) ? "Dia inteiro" : event.optString("time","").replace(":","h");
+        String source = event.optString("type",event.optString("source","RJP"));
+        return day + " · " + time + (compact ? "\n" + source : " · " + source);
+    }
+    private static int itemColor(JSONObject event) {
+        switch(event.optString("type",event.optString("source","RJP"))) {
+            case "Google": return Color.parseColor("#9DC4FF");
+            case "BT": return Color.parseColor("#74CBFF");
+            case "CC": return Color.parseColor("#FFD187");
+            case "Deslocação": case "IP": return Color.parseColor("#C8B4FF");
+            case "Tarefa": return Color.parseColor("#FFE2A0");
+            default: return Color.parseColor("#8FE1CE");
+        }
     }
 }

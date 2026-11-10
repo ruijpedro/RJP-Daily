@@ -23,10 +23,15 @@ test('widget não exibe conteúdo das notas pessoais nem URLs privadas no payloa
  const list=agendaWidgetEvents([{title:'Trabalho',details:'NIF e dados confidenciais',googleEventId:'SECRET',
   calendarId:'https://private.example/?auth=secret',when:'2026-11-09T13:00:00Z',kind:'evento'}],now);
  assert.equal(list.length,1);assert.deepEqual(Object.keys(list[0]).sort(),
-  ['allDay','date','source','time','timestamp','title'].sort());
+  ['allDay','date','source','time','timestamp','title','type'].sort());
 });
 test('widget elimina duplicados e compromissos de datas anteriores',()=>{
  const item={title:'Treino',when:'2026-11-10T20:00:00Z',kind:'evento'};
  const list=agendaWidgetEvents([item,{...item,id:'duplicate'},{title:'Antigo',when:'2026-11-01',kind:'evento'}],now);
  assert.equal(list.length,1);assert.equal(list[0].title,'Treino');
+});
+
+test('widget distingue BT, CC, deslocações e tarefas',()=>{
+ const x=agendaWidgetEvents([{title:'Prevenção BT',when:'2026-11-09',fromIP:true,linkedType:'guards'},{title:'Prevenção CC',when:'2026-11-10',fromIP:true,linkedType:'guards'},{title:'Deslocação',when:'2026-11-11',fromIP:true,linkedType:'trips'},{title:'Telefonar',when:'2026-11-12',kind:'tarefa'}],now);
+ assert.deepEqual(x.map(e=>e.type),['BT','CC','Deslocação','Tarefa']);
 });
