@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.14",
+  "nativeVersion": "1.1.18",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -44,5 +44,5 @@
   },
   "patchAndroidGitBlobSha": "a424821e62099e36bfd8ec9451c67d9347145b70",
   "allowedCosmeticPatchBlobShas": [],
-  "nativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
+  "nativeWidgetTreeSha": "a9a92212655ea43db287dcb86de5ada4cdb19d29"
 }

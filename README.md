@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.18 — Avisos IP nos widgets
+# Agenda RJP v1.1.19 — Centro de avisos profissionais
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -218,3 +218,7 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 ## v1.1.18
 - Ambos os widgets incluem o atalho Avisos IP, que abre diretamente o centro de avisos profissionais.
 - Mantém os atalhos + e VOZ no completo e todos os dados locais. Requer APK nativa 1.1.18 assinada; OTA não altera widgets Android.
+
+## v1.1.19
+- Contadores, pesquisa e filtros de avisos IP. Abrir, concluir, reabrir e adiar 10 minutos sem apagar o registo de serviço.
+- OTA base APK 1.1.18 assinada. Sem alterações nativas.

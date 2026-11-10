@@ -24,6 +24,7 @@ import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logi
 import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
+import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
@@ -519,6 +520,19 @@ function App(){
  const openProfessional=()=>setTab('ip');
  const openTrips=()=>setTab('deslocacoes');
  const openAlerts=()=>setTab('avisos');
+ const ipAlertCounts=summarizeProfessionalAlerts(professionalAlerts(ipData,items,clock),clock);
+ async function actOnProfessionalAlert(alert,action){
+  try{
+   const updated=changeProfessionalAlert(alert,action,new Date(),numericId());
+   await cancelItem(updated);
+   setItems(prev=>[updated,...prev.filter(x=>x.id!==updated.id)]);
+   if(action==='snooze')setIPData(prev=>({...prev,[alert.type]:prev[alert.type].map(x=>x.id===alert.record.id?{...x,reminderAt:updated.when,notificationId:updated.notificationId}:x)}));
+   if(updated.done){notify('Aviso concluído. O registo profissional foi mantido.');return;}
+   if(new Date(updated.when)<=new Date()){notify('Aviso reaberto. Altera a hora ou adia para receber novo lembrete.');return;}
+   const result=await scheduleItem(updated);
+   notify(result.scheduled?'Aviso agendado para '+new Date(updated.when).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})+'.':'Aviso guardado. Confirma as permissões de notificações do dispositivo.');
+  }catch(e){notify('Não foi possível alterar o aviso: '+e.message);}
+ }
  const openGuards=()=>setTab('prevencoes');
  const dateTitle=clock.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
  // O calendário não herda pesquisas e filtros dos separadores Tarefas/Notas.
@@ -555,7 +569,7 @@ function App(){
       {upcoming.slice(0,4).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {!upcoming.length&&<div className="empty compact">Ainda não tens lembretes futuros.</div>}
       <button className="ip-home-link" onClick={openTrips}><CarFront size={20}/><span><b>Deslocações de serviço</b><small>Registar e consultar · {ipData.trips.length} deslocações</small></span><ChevronRight size={19}/></button>
-      <button className="guard-home-link" onClick={openAlerts}><BellRing size={22}/><span><b>Notificações profissionais</b><small>Deslocações, prevenções e atividades · consultar avisos</small></span><ChevronRight size={19}/></button>
+      <button className="guard-home-link" onClick={openAlerts}><BellRing size={22}/><span><b>Notificações profissionais</b><small>{ipAlertCounts.pending} pendentes · {ipAlertCounts.today} hoje · {ipAlertCounts.overdue} em atraso</small></span><ChevronRight size={19}/></button>
       <button className="ip-home-link" onClick={openProfessional}><CarFront size={20}/><span><b>Gestão profissional · IP_RJP</b><small>{ipData.trips.length} deslocações · {ipData.guards.length} prevenções · {ipData.activities.length} atividades</small></span><ChevronRight size={19}/></button>
       <button className="guard-home-link" onClick={openGuards}><ShieldCheck size={22}/><span><b>Prevenções BT / CC</b><small>Aceder aos registos da antiga IP_RJP · {ipData.guards.length} registadas</small></span><ChevronRight size={19}/></button>
       <div className="section-heading"><h2>Registos rápidos</h2></div>
@@ -602,7 +616,7 @@ function App(){
         </button>)}
       </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}
     </>}
-    {['deslocacoes','avisos','prevencoes','ip'].includes(tab)&&<IPWorkspace key={tab} initialSection={tab==='deslocacoes'?'trips':tab==='avisos'?'alerts':tab==='prevencoes'?'guards':'resumo'} data={ipData} reminders={items} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
+    {['deslocacoes','avisos','prevencoes','ip'].includes(tab)&&<IPWorkspace key={tab} initialSection={tab==='deslocacoes'?'trips':tab==='avisos'?'alerts':tab==='prevencoes'?'guards':'resumo'} data={ipData} reminders={items} onAlertAction={actOnProfessionalAlert} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
     {tab==='tarefas'&&<>
       <div className="page-intro"><div className="eyebrow">ORGANIZAÇÃO</div><h1>Tarefas</h1><p>O que falta fazer e o que já ficou resolvido.</p></div>
       <div className="search"><Search size={18}/><input aria-label="Pesquisar tarefas" placeholder="Pesquisar por assunto, pessoa ou obra…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
@@ -680,7 +694,7 @@ function App(){
     </>}
    </main>
    <nav className="bottom-nav" aria-label="Navegação principal">
-    {NAV.map(({id,icon:I,text})=><button key={id} onClick={()=>{setTab(id);setSearch('');setFilter('Todos')}} className={tab===id?'active':''}><I size={22} strokeWidth={tab===id?2.4:1.8}/><span>{text}</span></button>)}
+    {NAV.map(({id,icon:I,text})=><button key={id} onClick={()=>{setTab(id);setSearch('');setFilter('Todos')}} className={tab===id?'active':''}><I size={22} strokeWidth={tab===id?2.4:1.8}/><span>{text}</span>{id==='avisos'&&ipAlertCounts.pending>0&&<span className="ip-nav-count">{Math.min(99,ipAlertCounts.pending)}</span>}</button>)}
    </nav>
    <button className="floating" aria-label="Criar nota ou tarefa por voz" title="Falar para criar" onClick={startVoice}><Mic size={23}/></button>
    {toast&&<div role="status" className="toast"><Info size={17}/>{toast}<button aria-label="Fechar aviso" onClick={()=>setToast('')}><X size={16}/></button></div>}
