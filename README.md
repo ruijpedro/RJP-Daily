@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.19 — Centro de avisos profissionais
+# Agenda RJP v1.1.20 — Centro de avisos profissionais
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -222,3 +222,6 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 ## v1.1.19
 - Contadores, pesquisa e filtros de avisos IP. Abrir, concluir, reabrir e adiar 10 minutos sem apagar o registo de serviço.
 - OTA base APK 1.1.18 assinada. Sem alterações nativas.
+
+## v1.1.20
+- Filtro Hoje mostra apenas avisos do dia. Edição de lembretes adiados mantém a hora local; editar um registo não reabre um aviso concluído quando a hora não mudou.

@@ -1,8 +1,9 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {BriefcaseBusiness,CarFront,ShieldCheck,ClipboardCheck,ChartColumn,Plus,Trash2,Copy,Edit3,FileDown,Download,Upload,Save,Clock3,CalendarDays,X,Search,Check,Settings2,MapPin,Star} from 'lucide-react';
+import {localDateTime} from '../logic/parse.js';
 import {localDay,newId,durationMinutes,minsText,getDefaultVehiclePlate} from '../ip/model.js';
 import {exportIPCSV,exportIPXLSX,exportIPPDF,exportIPJSON} from '../ip/reports.js';
-import {professionalAlerts,summarizeProfessionalAlerts} from '../logic/professional-alerts.js';
+import {professionalAlerts,summarizeProfessionalAlerts,professionalAlertDay} from '../logic/professional-alerts.js';
 import {BellRing} from 'lucide-react';
 
 const labels={trips:'Deslocações',guards:'Prevenções BT/CC',activities:'Atividades'};
@@ -36,7 +37,7 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
  const [alertType,setAlertType]=useState('all');
  const [alertSearch,setAlertSearch]=useState('');
  const [alertBusy,setAlertBusy]=useState('');
- const visibleAlerts=alerts.filter(x=>(alertType==='all'||x.type===alertType)&&x.title.toLocaleLowerCase('pt-PT').includes(alertSearch.toLocaleLowerCase('pt-PT').trim())&&(alertFilter==='Todos'||(alertFilter==='Pendentes'&&x.status!=='Concluído')||(alertFilter==='Futuros'&&x.status==='Futuro')||(alertFilter==='Hora passada'&&x.status==='Hora passada')||(alertFilter==='Concluídos'&&x.status==='Concluído')));
+ const visibleAlerts=alerts.filter(x=>(alertType==='all'||x.type===alertType)&&x.title.toLocaleLowerCase('pt-PT').includes(alertSearch.toLocaleLowerCase('pt-PT').trim())&&(alertFilter==='Todos'||(alertFilter==='Hoje'&&x.status!=='Concluído'&&professionalAlertDay(x.when)===professionalAlertDay(alertClock))||(alertFilter==='Pendentes'&&x.status!=='Concluído')||(alertFilter==='Futuros'&&x.status==='Futuro')||(alertFilter==='Hora passada'&&x.status==='Hora passada')||(alertFilter==='Concluídos'&&x.status==='Concluído')));
  async function alertAction(x,action){if(alertBusy)return;setAlertBusy(x.type+':'+x.record.id);try{await onAlertAction?.(x,action);}finally{setAlertBusy('');}}
  const [month,setMonth]=useState(()=>localDay().slice(0,7));
  const [search,setSearch]=useState('');
@@ -54,6 +55,7 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
  const update=(k,v)=>setForm(p=>({...p,[k]:v}));
  const open=(type,record=null,prefill=null)=>{
   const v={...emptyForm(type,data),...(record||{}),...(prefill||{})};
+  if(v.reminderAt&&Number.isFinite(new Date(v.reminderAt).getTime()))v.reminderAt=localDateTime(new Date(v.reminderAt));
   // No ditado sem matrícula explícita, não substituir a viatura preferida por texto vazio.
   if(type==='trips'&&!record&&!v.vehiclePlate)v.vehiclePlate=getDefaultVehiclePlate(data);
   // Não criar um novo evento Google por simples duplicação de registo.
@@ -68,7 +70,7 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
   if(!form.date){onToast('Escolhe a data.');return;}
   if(formType==='trips'&&(!form.from.trim()||!form.to.trim())){onToast('Indica origem e destino.');return;}
   if(formType==='guards'&&!['BT','CC'].includes(form.kind)){onToast('O tipo de prevenção tem de ser BT ou CC.');return;}
-  if(form.reminderAt&&form.reminderAt!==editing?.reminderAt&&new Date(form.reminderAt)<=new Date()){onToast('O lembrete tem de ser futuro.');return;}
+  if(form.reminderAt&&new Date(form.reminderAt).getTime()!==new Date(editing?.reminderAt||'').getTime()&&new Date(form.reminderAt)<=new Date()){onToast('O lembrete tem de ser futuro.');return;}
   setSaving(true);
   try{
    const record={...form,...(editing||{}),...form,id:editing?.id||newId(),createdAt:editing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
@@ -115,8 +117,8 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
   </div>}
  {section==='alerts'&&<>
   <div className="ip-topline"><h2>Avisos profissionais</h2><button className="primary-action" onClick={()=>open('trips')}><Plus size={16}/> Nova deslocação</button></div>
-  <div className="ip-alert-stats">{[{n:counts.pending,t:'Pendentes',filter:'Pendentes'},{n:counts.today,t:'Hoje',filter:'Pendentes'},{n:counts.overdue,t:'Em atraso',filter:'Hora passada'},{n:counts.completed,t:'Concluídos',filter:'Concluídos'}].map(x=><button type="button" key={x.t} onClick={()=>{setAlertFilter(x.filter);setAlertType('all');setAlertSearch('');}}><strong>{x.n}</strong><small>{x.t}</small></button>)}</div>
-  <div className="guard-filter" aria-label="Filtrar avisos">{['Pendentes','Futuros','Hora passada','Concluídos','Todos'].map(k=><button type="button" key={k} aria-pressed={alertFilter===k} className={alertFilter===k?'active':''} onClick={()=>setAlertFilter(k)}>{k}</button>)}</div>
+  <div className="ip-alert-stats">{[{n:counts.pending,t:'Pendentes',filter:'Pendentes'},{n:counts.today,t:'Hoje',filter:'Hoje'},{n:counts.overdue,t:'Em atraso',filter:'Hora passada'},{n:counts.completed,t:'Concluídos',filter:'Concluídos'}].map(x=><button type="button" key={x.t} onClick={()=>{setAlertFilter(x.filter);setAlertType('all');setAlertSearch('');}}><strong>{x.n}</strong><small>{x.t}</small></button>)}</div>
+  <div className="guard-filter" aria-label="Filtrar avisos">{['Pendentes','Hoje','Futuros','Hora passada','Concluídos','Todos'].map(k=><button type="button" key={k} aria-pressed={alertFilter===k} className={alertFilter===k?'active':''} onClick={()=>setAlertFilter(k)}>{k}</button>)}</div>
   <div className="guard-filter" aria-label="Tipo de aviso">{[['all','Todos os tipos'],['trips','Deslocações'],['guards','Prevenções'],['activities','Atividades']].map(([k,label])=><button type="button" key={k} aria-pressed={alertType===k} className={alertType===k?'active':''} onClick={()=>setAlertType(k)}>{label}</button>)}</div>
   <div className="search"><Search size={18}/><input aria-label="Pesquisar avisos IP" value={alertSearch} onChange={e=>setAlertSearch(e.target.value)} placeholder="Pesquisar origem, destino ou aviso…"/></div>
   <p className="fineprint">Todos os meses · {visibleAlerts.length} avisos. Os estados representam lembretes registados, não comprovam entrega Android.</p>

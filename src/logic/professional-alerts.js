@@ -9,8 +9,9 @@ export function professionalAlerts(data,items,now=new Date()){
  })).sort((a,b)=>new Date(a.when)-new Date(b.when));
 }
 
+export const professionalAlertDay=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(d));
 export function summarizeProfessionalAlerts(alerts,now=new Date()){
- const dateKey=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(d));
+ const dateKey=professionalAlertDay;
  const today=dateKey(now);
  return {pending:alerts.filter(a=>a.status!=='Concluído').length,today:alerts.filter(a=>a.status!=='Concluído'&&dateKey(a.when)===today).length,overdue:alerts.filter(a=>a.status==='Hora passada').length,completed:alerts.filter(a=>a.status==='Concluído').length};
 }

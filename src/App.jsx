@@ -492,15 +492,18 @@ function App(){
   }
   if(previous?.reminderAt)await cancelItem({notificationId:previous.notificationId});
   const linkedId=`ip-alert:${next.id}`;
+  const priorAlert=items.find(x=>x.id===linkedId);
+  const unchangedReminder=previous?.reminderAt&&new Date(previous.reminderAt).getTime()===new Date(next.reminderAt).getTime();
   const linked={id:linkedId,linkedIPId:next.id,linkedIPType:key,kind:'tarefa',title:ipAgendaGoogle(key,next).title,
    details:ipAgendaGoogle(key,next).details,category:'Trabalho',when:next.reminderAt||'',notificationId:next.notificationId,
-   done:false,createdAt:next.createdAt,updatedAt:next.updatedAt};
+   done:Boolean(unchangedReminder&&priorAlert?.done),createdAt:next.createdAt,updatedAt:next.updatedAt};
   setItems(prev=>{
    const filtered=prev.filter(i=>i.id!==linkedId);
    return next.reminderAt?[linked,...filtered]:filtered;
   });
   setIPData(prev=>({...prev,[key]:previous?prev[key].map(r=>r.id===next.id?next:r):[next,...prev[key]]}));
-  if(next.reminderAt){
+  if(next.reminderAt&&!linked.done){
+   if(new Date(linked.when)<=new Date()){notify('Registo guardado. A hora do aviso já passou.');return;}
    const result=await scheduleItem(linked);
    if(result.scheduled)notify('Registo guardado e aviso profissional agendado.');
    else notify('Registo guardado, mas o aviso não foi agendado. Confirma as permissões Android.');
@@ -526,7 +529,7 @@ function App(){
    const updated=changeProfessionalAlert(alert,action,new Date(),numericId());
    await cancelItem(updated);
    setItems(prev=>[updated,...prev.filter(x=>x.id!==updated.id)]);
-   if(action==='snooze')setIPData(prev=>({...prev,[alert.type]:prev[alert.type].map(x=>x.id===alert.record.id?{...x,reminderAt:updated.when,notificationId:updated.notificationId}:x)}));
+   if(action==='snooze')setIPData(prev=>({...prev,[alert.type]:prev[alert.type].map(x=>x.id===alert.record.id?{...x,reminderAt:localDateTime(new Date(updated.when)),notificationId:updated.notificationId}:x)}));
    if(updated.done){notify('Aviso concluído. O registo profissional foi mantido.');return;}
    if(new Date(updated.when)<=new Date()){notify('Aviso reaberto. Altera a hora ou adia para receber novo lembrete.');return;}
    const result=await scheduleItem(updated);
