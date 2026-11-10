@@ -2,6 +2,7 @@ import {Capacitor} from '@capacitor/core';
 import {Filesystem,Directory} from '@capacitor/filesystem';
 import {Share} from '@capacitor/share';
 import {durationMinutes,minsText} from './model.js';
+import {tripMinutes} from './quick-trip.js';
 import {saveJsonFile} from '../services/backup-file.js';
 
 async function download(name,content,type){
@@ -19,7 +20,7 @@ async function download(name,content,type){
 }
 const clean = val => String(val??'').replace(/\r?\n/g,' ');
 const rows=({trips,guards,activities})=>[
- ...trips.map(t=>['Deslocação',t.date,t.out||'',t.in||'',t.from||'',t.to||'',t.vehiclePlate||'',t.activity||'',t.notes||'',minsText(durationMinutes(t.out,t.in))]),
+ ...trips.map(t=>['Deslocação',t.date,t.out||'',t.in||'',t.from||'',t.to||'',t.vehiclePlate||'',t.activity||'',t.notes||'',minsText(tripMinutes(t))]),
  ...guards.map(g=>['Prevenção',g.date,g.start||'',g.end||'','','','',g.kind,g.notes||'','']),
  ...activities.map(a=>['Atividade',a.date,a.start||'',a.end||'',a.place||'','', '',a.type||'',a.notes||'',minsText(durationMinutes(a.start,a.end))])
 ].sort((a,b)=>a[1].localeCompare(b[1]));
@@ -39,7 +40,7 @@ export async function exportIPXLSX(payload){
   const sheet=wb.addWorksheet(name,{views:[{state:'frozen',ySplit:1}]});sheet.addRow(columns);
   sheet.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};sheet.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1B776F'}};
   for(const r of payload[key]){
-   sheet.addRow(key==='trips'?[r.date,r.from,r.to,r.vehiclePlate,r.out,r.in,minsText(durationMinutes(r.out,r.in)),r.activity,r.notes]:key==='guards'?[r.date,r.kind,r.start||'',r.end||'',r.notes]:[r.date,r.type,r.place,r.start,r.end,minsText(durationMinutes(r.start,r.end)),r.notes]);
+   sheet.addRow(key==='trips'?[r.date,r.from,r.to,r.vehiclePlate,r.out,r.in,minsText(tripMinutes(r)),r.activity,r.notes]:key==='guards'?[r.date,r.kind,r.start||'',r.end||'',r.notes]:[r.date,r.type,r.place,r.start,r.end,minsText(durationMinutes(r.start,r.end)),r.notes]);
   }
   sheet.columns.forEach((col,i)=>{col.width=Math.min(45,Math.max(15,columns[i].length+5));});sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:columns.length}};
  }
@@ -59,7 +60,7 @@ export async function exportIPPDF(payload){
  write(`Resumo: ${trips.length} deslocações | ${guards.filter(x=>x.kind==='BT').length} BT | ${guards.filter(x=>x.kind==='CC').length} CC | ${activities.length} atividades`,10,true);
  y+=4;
  const section=(title,records,format)=>{write(title,12,true);if(!records.length)write('Sem registos',9);else for(const r of records){write(format(r),9);y+=1;}y+=4;};
- section('Deslocações',trips,r=>`${r.date} | ${r.from} -> ${r.to} | ${r.vehiclePlate||''} | ${r.out||'?'}-${r.in||'?'} | ${minsText(durationMinutes(r.out,r.in))} | ${r.activity||''} ${r.notes||''}`);
+ section('Deslocações',trips,r=>`${r.date} | ${r.from} -> ${r.to} | ${r.vehiclePlate||''} | ${r.out||'?'}-${r.in||'?'} | ${minsText(tripMinutes(r))} | ${r.activity||''} ${r.notes||''}`);
  section('Prevenções',guards,r=>`${r.date} | ${r.kind} | ${r.notes||''}`);
  section('Atividades',activities,r=>`${r.date} | ${r.type||''} | ${r.place||''} | ${r.start||''}-${r.end||''} | ${r.notes||''}`);
  const pages=pdf.internal.getNumberOfPages();for(let p=1;p<=pages;p++){pdf.setPage(p);pdf.setFontSize(8);pdf.text(`RJP Daily | ${payload.month} | ${p}/${pages}`,15,292);}

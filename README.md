@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.21 — OTA compatível e diagnóstico
+# Agenda RJP v1.1.22 — Deslocações rápidas
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -230,3 +230,8 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Recupera OTA para APK 1.1.14 e 1.1.18 após auditoria de compatibilidade; os widgets antigos mantêm os seus botões originais.
 - Mostra versão Web e APK Android separadamente, identifica atualizações bloqueadas por versão nativa e permite aplicar bundle preparado imediatamente.
 - Mantém verificação das fontes nativas e checksum.
+
+## v1.1.22
+- Iniciar/terminar deslocação com horas automáticas, viatura habitual, contador persistente e resumo de hoje.
+- Diário profissional com atividades de hoje, prevenções e atalhos. Uma viagem rápida não cria avisos ou eventos Google automaticamente; os lembretes continuam opcionais e únicos por registo.
+- Exportações CSV/XLSX/PDF incluem duração de viagens rápidas. Sem mudanças nativas.

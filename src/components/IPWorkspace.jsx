@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {BriefcaseBusiness,CarFront,ShieldCheck,ClipboardCheck,ChartColumn,Plus,Trash2,Copy,Edit3,FileDown,Download,Upload,Save,Clock3,CalendarDays,X,Search,Check,Settings2,MapPin,Star} from 'lucide-react';
 import {localDateTime} from '../logic/parse.js';
+import {activeTrip,startQuickTrip,finishQuickTrip,elapsedTripMinutes,tripDaySummary,tripMinutes,correctQuickTrip} from '../ip/quick-trip.js';
 import {localDay,newId,durationMinutes,minsText,getDefaultVehiclePlate} from '../ip/model.js';
 import {exportIPCSV,exportIPXLSX,exportIPPDF,exportIPJSON} from '../ip/reports.js';
 import {professionalAlerts,summarizeProfessionalAlerts,professionalAlertDay} from '../logic/professional-alerts.js';
@@ -21,7 +22,7 @@ function ProfessionalList({type,records,onEdit,onDelete,onDuplicate,query}){
   <div className="ip-record-body"><b>{type==='trips'?`${r.from} → ${r.to}`:type==='guards'?<><span className={`guard-type ${String(r.kind).toLowerCase()}`}>{r.kind}</span> Prevenção {r.kind}</>:`${r.type||'Atividade'}`}</b>
    <small>{dateLabel(r)} · {type==='trips'?`${r.vehiclePlate||'Sem viatura'} · ${r.out||'--:--'}–${r.in||'--:--'}`:type==='guards'?`${r.start||'Sem hora definida'}${r.end?'–'+r.end:''}`:`${r.place||'Local por definir'} · ${r.start||'--:--'}–${r.end||'--:--'}`}</small>
    {(r.activity||r.notes)&&<p>{[r.activity,r.notes].filter(Boolean).join(' · ')}</p>}
-   <div className="ip-tags">{r.reminderAt&&<span> <Clock3 size={11}/> Lembrete</span>}{r.googleEventId&&<span><CalendarDays size={11}/> Google</span>}</div>
+   <div className="ip-tags">{type==='trips'&&r.quickStartedAt&&!r.in&&<span><Clock3 size={11}/> Em curso</span>}{r.reminderAt&&<span> <Clock3 size={11}/> Lembrete</span>}{r.googleEventId&&<span><CalendarDays size={11}/> Google</span>}</div>
   </div>
   <div className="ip-record-actions"><button title="Editar" onClick={()=>onEdit(type,r)}><Edit3 size={17}/></button><button title="Duplicar" onClick={()=>onDuplicate(type,r)}><Copy size={16}/></button><button title="Eliminar" className="danger" onClick={()=>onDelete(type,r)}><Trash2 size={16}/></button></div>
  </div>):<div className="empty compact">Ainda não existem registos neste período.</div>}</div>;
@@ -45,12 +46,31 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
  const [form,setForm]=useState({});
  const [editing,setEditing]=useState(null);
  const [saving,setSaving]=useState(false);
+ const [quickOpen,setQuickOpen]=useState(false);
+ const [quickBusy,setQuickBusy]=useState(false);
+ const quickLock=useRef(false);
+ const [quickNow,setQuickNow]=useState(()=>new Date());
+ const [quickForm,setQuickForm]=useState(()=>({from:data.places[0]||'',to:data.places[1]||'',vehiclePlate:getDefaultVehiclePlate(data),activity:''}));
+ const runningTrip=activeTrip(data.trips);
+ const todayTrips=tripDaySummary(data.trips,localDay(quickNow));
+ const todayActivities=data.activities.filter(x=>x.date===localDay(quickNow));
+ useEffect(()=>{const tick=()=>setQuickNow(new Date());tick();const id=setInterval(tick,runningTrip?1000:30000);return()=>clearInterval(id);},[runningTrip?.id]);
+ async function beginTrip(e){
+  e.preventDefault();if(quickLock.current||runningTrip)return;quickLock.current=true;setQuickBusy(true);
+  try{const record=startQuickTrip(quickForm,new Date(),newId());await onPersist('trips',record);setQuickOpen(false);setMonth(record.date.slice(0,7));setSection('trips');}
+  catch(e){onToast('Não foi possível iniciar: '+e.message);}finally{quickLock.current=false;setQuickBusy(false);}
+ }
+ async function endTrip(){
+  if(quickLock.current||!runningTrip)return;quickLock.current=true;setQuickBusy(true);
+  try{const record=finishQuickTrip(runningTrip,new Date());await onPersist('trips',record,runningTrip);setMonth(record.date.slice(0,7));onToast('Deslocação terminada · '+minsText(tripMinutes(record)));}
+  catch(e){onToast('Não foi possível terminar: '+e.message);}finally{quickLock.current=false;setQuickBusy(false);}
+ }
  const [carDraft,setCarDraft]=useState({plate:'',brand:'',model:'',color:'Branco',type:'Viatura de serviço',active:true});
  const [editingVehicle,setEditingVehicle]=useState(null);
  const importRef=useRef(null);
  const lists=useMemo(()=>Object.fromEntries(['trips','guards','activities'].map(key=>[key,data[key].filter(r=>toMonth(r)===month)])),[data,month]);
  const bt=lists.guards.filter(g=>g.kind==='BT').length,cc=lists.guards.filter(g=>g.kind==='CC').length;
- const tripHours=minsText(lists.trips.reduce((sum,r)=>sum+durationMinutes(r.out,r.in),0));
+ const tripHours=minsText(lists.trips.reduce((sum,r)=>sum+tripMinutes(r),0));
  const actHours=minsText(lists.activities.reduce((sum,r)=>sum+durationMinutes(r.start,r.end),0));
  const update=(k,v)=>setForm(p=>({...p,[k]:v}));
  const open=(type,record=null,prefill=null)=>{
@@ -64,7 +84,7 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
   if(v.date)setMonth(v.date.slice(0,7));
  };
  useEffect(()=>{if(!voiceIntent)return;open(voiceIntent.type,null,voiceIntent.form);onVoiceConsumed?.();},[voiceIntent]);
- const duplicate=(type,record)=>open(type,null,{...record,id:undefined,date:localDay(),googleEventId:null,reminderAt:'',addToGoogle:false});
+ const duplicate=(type,record)=>open(type,null,{...record,id:undefined,date:localDay(),googleEventId:null,notificationId:null,quickStartedAt:undefined,quickFinishedAt:undefined,reminderAt:'',addToGoogle:false});
  async function submit(e){
   e.preventDefault();
   if(!form.date){onToast('Escolhe a data.');return;}
@@ -74,7 +94,9 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
   setSaving(true);
   try{
    const record={...form,...(editing||{}),...form,id:editing?.id||newId(),createdAt:editing?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
-   await onPersist(formType,record,editing);setFormType(null);
+   const corrected=formType==='trips'?correctQuickTrip(record,editing):record;
+   if(formType==='trips'&&corrected.quickStartedAt&&!corrected.in&&runningTrip&&runningTrip.id!==corrected.id)throw new Error('Termina primeiro a deslocação em curso.');
+   await onPersist(formType,corrected,editing);setFormType(null);
   }catch(err){onToast(`Não foi possível guardar: ${err.message}`)}finally{setSaving(false)}
  }
  const payload={month,profile:data.profile,...lists};
@@ -102,7 +124,18 @@ export default function IPWorkspace({initialSection='resumo',data,reminders=[],o
  <div className="page-intro"><div className="eyebrow">GESTÃO PROFISSIONAL · IP_RJP</div><h1>{initialSection==='trips'?'Deslocações de serviço':initialSection==='alerts'?'Notificações profissionais':initialSection==='guards'?'Prevenções BT / CC':'Gestão profissional'}</h1><p>{initialSection==='trips'?'Regista viagens de serviço, horários, viaturas e lembretes.':initialSection==='alerts'?'Consulta os avisos de deslocações, prevenções BT/CC e atividades, e abre os registos associados.':initialSection==='guards'?'Registos por dia, tipo BT/CC, observações, histórico e relatórios.':'Registos de serviço, atividades, viaturas e relatórios num só local.'}</p></div>
  {section!=='alerts'&&<div className="ip-month-row"><label htmlFor="ip-month">Mês de referência</label><input id="ip-month" type="month" value={month} onChange={e=>setMonth(e.target.value||localDay().slice(0,7))}/></div>}
  <div className="ip-section-tabs">{actions.map(({key,label,Icon})=><button key={key} className={section===key?'active':''} onClick={()=>setSection(key)}><Icon size={16}/>{label}</button>)}</div>
+ {['resumo','trips'].includes(section)&&<div className="quick-trip-panel">
+  <div className="quick-trip-heading"><CarFront size={23}/><div><strong>{runningTrip?'Deslocação em curso':'Deslocações rápidas'}</strong><small>{runningTrip?'Registo guardado no telemóvel':'Regista a saída e chegada automaticamente'}</small></div></div>
+  {runningTrip?<><div className="quick-trip-route"><b>{runningTrip.from} → {runningTrip.to}</b><small>{runningTrip.vehiclePlate||'Sem viatura'} · Saída {runningTrip.out} · {runningTrip.date}</small></div><div className="quick-trip-timer"><Clock3 size={22}/><strong>{minsText(elapsedTripMinutes(runningTrip,quickNow))}</strong><small>Tempo decorrido</small></div><div className="quick-trip-buttons"><button type="button" className="primary-action" disabled={quickBusy} onClick={endTrip}><Check size={18}/> Terminar viagem</button><button type="button" className="light-action" onClick={()=>open('trips',runningTrip)}><Edit3 size={16}/> Corrigir</button></div></>:<>
+   {!quickOpen?<button type="button" className="primary-action quick-trip-start" onClick={()=>{setQuickForm({from:data.places[0]||'',to:data.places[1]||'',vehiclePlate:getDefaultVehiclePlate(data),activity:''});setQuickOpen(true);}}><CarFront size={19}/> Iniciar deslocação</button>:<form onSubmit={beginTrip} className="quick-trip-form">
+    <div className="ip-form-grid"><Field label="Origem"><input className="text-field" list="quick-trip-places" required value={quickForm.from} onChange={e=>setQuickForm(v=>({...v,from:e.target.value}))}/></Field><Field label="Destino"><input className="text-field" list="quick-trip-places" required value={quickForm.to} onChange={e=>setQuickForm(v=>({...v,to:e.target.value}))}/></Field><Field label="Viatura"><input className="text-field" list="quick-trip-vehicles" value={quickForm.vehiclePlate} onChange={e=>setQuickForm(v=>({...v,vehiclePlate:e.target.value.toUpperCase()}))}/></Field><Field label="Motivo (opcional)"><input className="text-field" value={quickForm.activity} onChange={e=>setQuickForm(v=>({...v,activity:e.target.value}))}/></Field></div>
+    <datalist id="quick-trip-places">{data.places.map(v=><option key={v} value={v}/>)}</datalist><datalist id="quick-trip-vehicles">{data.vehicles.filter(v=>v.active!==false).map(v=><option key={v.id} value={v.plate}/>)}</datalist><div className="quick-trip-buttons"><button className="primary-action" type="submit" disabled={quickBusy}><Check size={17}/> Registar saída agora</button><button className="light-action" type="button" onClick={()=>setQuickOpen(false)}>Cancelar</button></div>
+   </form>}
+  </>}
+  <div className="quick-trip-summary"><span>Hoje <b>{todayTrips.count} viagens</b></span><span>Terminadas <b>{todayTrips.finished}</b></span><span>Tempo <b>{minsText(todayTrips.minutes)}</b></span></div>
+ </div>}
  {section==='resumo'&&<>
+   <div className="settings-card"><div className="settings-title"><ClipboardCheck size={20}/><h2>Diário profissional de hoje</h2></div><div className="setting-line"><span>Atividades registadas</span><span className="setting-value">{todayActivities.length}</span></div><div className="setting-line"><span>Prevenções BT/CC</span><span className="setting-value">{data.guards.filter(x=>x.date===localDay(quickNow)).length}</span></div><button className="primary-action" onClick={()=>open('activities',null,{date:localDay(),start:new Date().toTimeString().slice(0,5)})}><Plus size={16}/> Nova atividade</button>{todayActivities.length>0&&<ProfessionalList type="activities" records={todayActivities} onEdit={open} onDelete={onDelete} onDuplicate={duplicate} query=""/>}</div>
    <div className="ip-stat-grid">
      {[{n:lists.trips.length,t:'Deslocações',Icon:CarFront,key:'trips'},{n:bt,t:'Prevenções BT',Icon:ShieldCheck,key:'guards'},{n:cc,t:'Prevenções CC',Icon:ShieldCheck,key:'guards'},{n:lists.activities.length,t:'Atividades',Icon:ClipboardCheck,key:'activities'}].map(({n,t,Icon,key})=><button key={t} onClick={()=>setSection(key)} className="ip-stat"><Icon size={21}/><strong>{n}</strong><small>{t}</small></button>)}
    </div>

@@ -483,7 +483,7 @@ function App(){
  });
  async function persistProfessional(key,record,previous=null){
   // A persistência local é sempre prioritária; as ligações externas são opcionais.
-  const next={...record,notificationId:record.notificationId||previous?.notificationId||numericId()};
+  const next={...record,notificationId:previous?.notificationId||record.notificationId||numericId()};
   if(next.addToGoogle){
    if(!googleConnected())notify('Registo guardado localmente. Liga a conta Google para enviar o evento.');
    else if(key==='guards'&&!next.start)notify('Prevenção guardada localmente. Indica uma hora de início para sincronizar com Google.');
@@ -492,9 +492,10 @@ function App(){
     catch(e){notify('Registo local guardado; Google Calendar: '+e.message);}
    }
   }
-  if(previous?.reminderAt)await cancelItem({notificationId:previous.notificationId});
+  if(previous?.reminderAt&&previous.notificationId)await cancelItem({notificationId:previous.notificationId});
   const linkedId=`ip-alert:${next.id}`;
   const priorAlert=items.find(x=>x.id===linkedId);
+  if(priorAlert?.notificationId&&priorAlert.notificationId!==next.notificationId)await cancelItem(priorAlert);
   const unchangedReminder=previous?.reminderAt&&new Date(previous.reminderAt).getTime()===new Date(next.reminderAt).getTime();
   const linked={id:linkedId,linkedIPId:next.id,linkedIPType:key,kind:'tarefa',title:ipAgendaGoogle(key,next).title,
    details:ipAgendaGoogle(key,next).details,category:'Trabalho',when:next.reminderAt||'',notificationId:next.notificationId,
@@ -573,7 +574,7 @@ function App(){
       <div className="section-heading"><h2>Próximos compromissos e lembretes</h2><button className="text-button" onClick={()=>{setTab('tarefas');setFilter('Todos')}}>Ver todos <ChevronRight size={16}/></button></div>
       {upcoming.slice(0,4).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {!upcoming.length&&<div className="empty compact">Ainda não tens lembretes futuros.</div>}
-      <button className="ip-home-link" onClick={openTrips}><CarFront size={20}/><span><b>Deslocações de serviço</b><small>Registar e consultar · {ipData.trips.length} deslocações</small></span><ChevronRight size={19}/></button>
+      <button className="ip-home-link" onClick={openTrips}><CarFront size={20}/><span><b>Deslocações de serviço</b><small>{ipData.trips.some(t=>t.quickStartedAt&&!t.quickFinishedAt&&!t.in)?'Deslocação em curso · tocar para terminar':`Registar e consultar · ${ipData.trips.length} deslocações`}</small></span><ChevronRight size={19}/></button>
       <button className="guard-home-link" onClick={openAlerts}><BellRing size={22}/><span><b>Notificações profissionais</b><small>{ipAlertCounts.pending} pendentes · {ipAlertCounts.today} hoje · {ipAlertCounts.overdue} em atraso</small></span><ChevronRight size={19}/></button>
       <button className="ip-home-link" onClick={openProfessional}><CarFront size={20}/><span><b>Gestão profissional · IP_RJP</b><small>{ipData.trips.length} deslocações · {ipData.guards.length} prevenções · {ipData.activities.length} atividades</small></span><ChevronRight size={19}/></button>
       <button className="guard-home-link" onClick={openGuards}><ShieldCheck size={22}/><span><b>Prevenções BT / CC</b><small>Aceder aos registos da antiga IP_RJP · {ipData.guards.length} registadas</small></span><ChevronRight size={19}/></button>
