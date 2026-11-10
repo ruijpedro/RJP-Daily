@@ -27,7 +27,7 @@ import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
 const kindLabels={nota:'Nota',tarefa:'Tarefa',evento:'Compromisso'};
-const NAV=[{id:'inicio',icon:Home,text:'Início'},{id:'agenda',icon:CalendarDays,text:'Agenda'},{id:'ip',icon:BriefcaseBusiness,text:'IP'},{id:'prevencoes',icon:ShieldCheck,text:'Prevenções'},{id:'tarefas',icon:ListTodo,text:'Tarefas'},{id:'notas',icon:StickyNote,text:'Notas'},{id:'definicoes',icon:Settings2,text:'Definições'}];
+const NAV=[{id:'inicio',icon:Home,text:'Início'},{id:'agenda',icon:CalendarDays,text:'Agenda'},{id:'deslocacoes',icon:CarFront,text:'Deslocações'},{id:'avisos',icon:BellRing,text:'Avisos IP'},{id:'ip',icon:BriefcaseBusiness,text:'IP'},{id:'prevencoes',icon:ShieldCheck,text:'Prevenções'},{id:'tarefas',icon:ListTodo,text:'Tarefas'},{id:'notas',icon:StickyNote,text:'Notas'}];
 const startOfDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
 const dateKey=calendarDayKey;
 const toDate=when=>when?new Date(when):null;
@@ -188,6 +188,7 @@ function App(){
   onNotificationAction(action=>{
    const id=action?.notification?.extra?.itemId;
    if(!id)return;
+   if(id.startsWith('ip-alert:') && !['done','snooze'].includes(action.actionId))setTab('avisos');
    if(action.actionId==='done'){
      setItems(prev=>prev.map(x=>x.id===id?{...x,done:true}:x));
    }
@@ -397,7 +398,7 @@ function App(){
   const query=/\b(o que tenho|mostra(?:-me)? (?:a )?agenda|consulta(?:r)? (?:a )?agenda)\b/i.test(text);
   if(query){const parsed=parsePtCommand(text);const d=parsed.when?new Date(parsed.when):new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');setModal(null);notify('Agenda aberta.');return;}
   const ip=parseIPVoice(text);
-  if(ip){setIPVoice(ip);setTab('ip');setModal(null);return;}
+  if(ip){setIPVoice(ip);setTab(ip.type==='trips'?'deslocacoes':ip.type==='guards'?'prevencoes':'ip');setModal(null);return;}
   const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(connected&&autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');
  }
  // Atalhos do widget: URI explícito Android, validado no arranque e em execução.
@@ -515,6 +516,8 @@ function App(){
  }
  async function importProfessional(file){await importBackup(file);}
  const openProfessional=()=>setTab('ip');
+ const openTrips=()=>setTab('deslocacoes');
+ const openAlerts=()=>setTab('avisos');
  const openGuards=()=>setTab('prevencoes');
  const dateTitle=clock.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
  // O calendário não herda pesquisas e filtros dos separadores Tarefas/Notas.
@@ -550,6 +553,8 @@ function App(){
       <div className="section-heading"><h2>Próximos compromissos e lembretes</h2><button className="text-button" onClick={()=>{setTab('tarefas');setFilter('Todos')}}>Ver todos <ChevronRight size={16}/></button></div>
       {upcoming.slice(0,4).map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>)}
       {!upcoming.length&&<div className="empty compact">Ainda não tens lembretes futuros.</div>}
+      <button className="ip-home-link" onClick={openTrips}><CarFront size={20}/><span><b>Deslocações de serviço</b><small>Registar e consultar · {ipData.trips.length} deslocações</small></span><ChevronRight size={19}/></button>
+      <button className="guard-home-link" onClick={openAlerts}><BellRing size={22}/><span><b>Notificações profissionais</b><small>Deslocações, prevenções e atividades · consultar avisos</small></span><ChevronRight size={19}/></button>
       <button className="ip-home-link" onClick={openProfessional}><CarFront size={20}/><span><b>Gestão profissional · IP_RJP</b><small>{ipData.trips.length} deslocações · {ipData.guards.length} prevenções · {ipData.activities.length} atividades</small></span><ChevronRight size={19}/></button>
       <button className="guard-home-link" onClick={openGuards}><ShieldCheck size={22}/><span><b>Prevenções BT / CC</b><small>Aceder aos registos da antiga IP_RJP · {ipData.guards.length} registadas</small></span><ChevronRight size={19}/></button>
       <div className="section-heading"><h2>Registos rápidos</h2></div>
@@ -596,8 +601,7 @@ function App(){
         </button>)}
       </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}
     </>}
-    {tab==='prevencoes'&&<IPWorkspace initialSection="guards" data={ipData} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
-    {tab==='ip'&&<IPWorkspace data={ipData} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
+    {['deslocacoes','avisos','prevencoes','ip'].includes(tab)&&<IPWorkspace key={tab} initialSection={tab==='deslocacoes'?'trips':tab==='avisos'?'alerts':tab==='prevencoes'?'guards':'resumo'} data={ipData} reminders={items} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
     {tab==='tarefas'&&<>
       <div className="page-intro"><div className="eyebrow">ORGANIZAÇÃO</div><h1>Tarefas</h1><p>O que falta fazer e o que já ficou resolvido.</p></div>
       <div className="search"><Search size={18}/><input aria-label="Pesquisar tarefas" placeholder="Pesquisar por assunto, pessoa ou obra…" value={search} onChange={e=>setSearch(e.target.value)}/></div>

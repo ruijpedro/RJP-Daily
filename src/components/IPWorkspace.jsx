@@ -2,9 +2,11 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {BriefcaseBusiness,CarFront,ShieldCheck,ClipboardCheck,ChartColumn,Plus,Trash2,Copy,Edit3,FileDown,Download,Upload,Save,Clock3,CalendarDays,X,Search,Check,Settings2,MapPin,Star} from 'lucide-react';
 import {localDay,newId,durationMinutes,minsText,getDefaultVehiclePlate} from '../ip/model.js';
 import {exportIPCSV,exportIPXLSX,exportIPPDF,exportIPJSON} from '../ip/reports.js';
+import {professionalAlerts} from '../logic/professional-alerts.js';
+import {BellRing} from 'lucide-react';
 
 const labels={trips:'Deslocações',guards:'Prevenções BT/CC',activities:'Atividades'};
-const actions=[{key:'resumo',label:'Resumo',Icon:ChartColumn},{key:'trips',label:'Deslocações',Icon:CarFront},{key:'guards',label:'Prevenções',Icon:ShieldCheck},{key:'activities',label:'Atividades',Icon:ClipboardCheck},{key:'vehicles',label:'Viaturas',Icon:Settings2},{key:'reports',label:'Relatórios',Icon:FileDown}];
+const actions=[{key:'resumo',label:'Resumo',Icon:ChartColumn},{key:'trips',label:'Deslocações',Icon:CarFront},{key:'alerts',label:'Avisos IP',Icon:BellRing},{key:'guards',label:'Prevenções',Icon:ShieldCheck},{key:'activities',label:'Atividades',Icon:ClipboardCheck},{key:'vehicles',label:'Viaturas',Icon:Settings2},{key:'reports',label:'Relatórios',Icon:FileDown}];
 const emptyForm=(type,data)=>type==='trips'?{date:localDay(),from:data.places[0]||'',to:data.places[1]||'',vehiclePlate:getDefaultVehiclePlate(data),out:'08:00',in:'',activity:'',notes:'',reminderAt:'',addToGoogle:false}:type==='guards'?{date:localDay(),kind:'BT',start:'',end:'',notes:'',reminderAt:'',addToGoogle:false}:{date:localDay(),type:data.activityTypes[0]||'Outro',place:data.places[0]||'',start:'09:00',end:'',notes:'',reminderAt:'',addToGoogle:false};
 const toMonth=x=>String(x.date||'').slice(0,7);
 const dateLabel=x=>{try{return new Date(`${x.date}T12:00:00`).toLocaleDateString('pt-PT',{day:'2-digit',month:'short'})}catch{return x.date}};
@@ -23,9 +25,13 @@ function ProfessionalList({type,records,onEdit,onDelete,onDuplicate,query}){
   <div className="ip-record-actions"><button title="Editar" onClick={()=>onEdit(type,r)}><Edit3 size={17}/></button><button title="Duplicar" onClick={()=>onDuplicate(type,r)}><Copy size={16}/></button><button title="Eliminar" className="danger" onClick={()=>onDelete(type,r)}><Trash2 size={16}/></button></div>
  </div>):<div className="empty compact">Ainda não existem registos neste período.</div>}</div>;
 }
-export default function IPWorkspace({initialSection='resumo',data,setData,onPersist,onDelete,voiceIntent,onVoiceConsumed,onImport,onToast,googleConnected}){
+export default function IPWorkspace({initialSection='resumo',data,reminders=[],setData,onPersist,onDelete,voiceIntent,onVoiceConsumed,onImport,onToast,googleConnected}){
  const [section,setSection]=useState(initialSection);
  const [guardFilter,setGuardFilter]=useState('Todas');
+ const [alertFilter,setAlertFilter]=useState('Pendentes');
+ const [alertClock,setAlertClock]=useState(()=>new Date());
+ useEffect(()=>{const id=setInterval(()=>setAlertClock(new Date()),30000);return()=>clearInterval(id);},[]);
+ const alerts=professionalAlerts(data,reminders,alertClock);
  const [month,setMonth]=useState(()=>localDay().slice(0,7));
  const [search,setSearch]=useState('');
  const [formType,setFormType]=useState(null);
@@ -85,8 +91,8 @@ export default function IPWorkspace({initialSection='resumo',data,setData,onPers
  }
  const recordsTotal=lists.trips.length+lists.guards.length+lists.activities.length;
  return <>
- <div className="page-intro"><div className="eyebrow">GESTÃO PROFISSIONAL · IP_RJP</div><h1>{initialSection==='guards'?'Prevenções BT / CC':'Deslocações & Prevenções'}</h1><p>{initialSection==='guards'?'O módulo de prevenções da antiga IP_RJP: registo por dia, tipo BT/CC, observações, histórico e relatórios.':'Registos de serviço, atividades, viaturas e relatórios num só local.'}</p></div>
- <div className="ip-month-row"><label htmlFor="ip-month">Mês de referência</label><input id="ip-month" type="month" value={month} onChange={e=>setMonth(e.target.value||localDay().slice(0,7))}/></div>
+ <div className="page-intro"><div className="eyebrow">GESTÃO PROFISSIONAL · IP_RJP</div><h1>{initialSection==='trips'?'Deslocações de serviço':initialSection==='alerts'?'Notificações profissionais':initialSection==='guards'?'Prevenções BT / CC':'Gestão profissional'}</h1><p>{initialSection==='trips'?'Regista viagens de serviço, horários, viaturas e lembretes.':initialSection==='alerts'?'Consulta os avisos de deslocações, prevenções BT/CC e atividades, e abre os registos associados.':initialSection==='guards'?'Registos por dia, tipo BT/CC, observações, histórico e relatórios.':'Registos de serviço, atividades, viaturas e relatórios num só local.'}</p></div>
+ {section!=='alerts'&&<div className="ip-month-row"><label htmlFor="ip-month">Mês de referência</label><input id="ip-month" type="month" value={month} onChange={e=>setMonth(e.target.value||localDay().slice(0,7))}/></div>}
  <div className="ip-section-tabs">{actions.map(({key,label,Icon})=><button key={key} className={section===key?'active':''} onClick={()=>setSection(key)}><Icon size={16}/>{label}</button>)}</div>
  {section==='resumo'&&<>
    <div className="ip-stat-grid">
@@ -101,8 +107,17 @@ export default function IPWorkspace({initialSection='resumo',data,setData,onPers
    <div className="guard-quick-buttons"><button type="button" onClick={()=>open('guards',null,{kind:'BT'})}><span className="guard-type bt">BT</span> Registar prevenção BT</button><button type="button" onClick={()=>open('guards',null,{kind:'CC'})}><span className="guard-type cc">CC</span> Registar prevenção CC</button></div>
    <div className="guard-counts"><span>Este mês: <b>{lists.guards.length}</b></span><span>BT: <b>{bt}</b></span><span>CC: <b>{cc}</b></span></div>
   </div>}
+ {section==='alerts'&&<>
+  <div className="ip-topline"><h2>Avisos profissionais</h2><button className="primary-action" onClick={()=>open('trips')}><Plus size={16}/> Nova deslocação</button></div>
+  <div className="guard-filter" aria-label="Filtrar avisos">{['Pendentes','Futuros','Hora passada','Concluídos','Todos'].map(k=><button type="button" key={k} aria-pressed={alertFilter===k} className={alertFilter===k?'active':''} onClick={()=>setAlertFilter(k)}>{k}</button>)}</div>
+  <p className="fineprint">Todos os meses. A lista mostra os lembretes registados, não confirma se o Android entregou a notificação.</p>
+  <div className="ip-records">{alerts.filter(x=>alertFilter==='Todos'||(alertFilter==='Pendentes'&&x.status!=='Concluído')||(alertFilter==='Futuros'&&x.status==='Futuro')||(alertFilter==='Hora passada'&&x.status==='Hora passada')||(alertFilter==='Concluídos'&&x.status==='Concluído')).map(x=><div className="ip-record" key={x.type+':'+x.record.id}>
+    <div className="ip-record-icon"><BellRing size={19}/></div><div className="ip-record-body"><b>{x.title}</b><small>{new Date(x.when).toLocaleString('pt-PT',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} · {x.status}</small><div className="ip-tags"><span>{labels[x.type]}</span></div></div><div className="ip-record-actions"><button type="button" title="Abrir registo" aria-label="Abrir registo profissional" onClick={()=>open(x.type,x.record)}><Edit3 size={17}/></button></div>
+  </div>)}
+  {!alerts.some(x=>alertFilter==='Todos'||(alertFilter==='Pendentes'&&x.status!=='Concluído')||(alertFilter==='Futuros'&&x.status==='Futuro')||(alertFilter==='Hora passada'&&x.status==='Hora passada')||(alertFilter==='Concluídos'&&x.status==='Concluído'))&&<div className="empty compact">Não há avisos neste filtro. Define um lembrete ao criar ou editar um registo profissional.</div>}</div>
+ </>}
  {['trips','guards','activities'].includes(section)&&<>
-   <div className="ip-topline"><h2>{labels[section]}</h2><button className="primary-action" onClick={()=>open(section)}><Plus size={16}/> Novo registo</button></div>
+   <div className="ip-topline"><h2>{labels[section]}</h2><button className="primary-action" onClick={()=>open(section)}><Plus size={16}/> {section==='trips'?'Nova deslocação':'Novo registo'}</button></div>
    <div className="search"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Pesquisar registos deste mês…"/></div>
    {section==='guards'&&<div className="guard-filter" aria-label="Filtrar por tipo de prevenção">{['Todas','BT','CC'].map(k=><button type="button" key={k} aria-pressed={guardFilter===k} className={guardFilter===k?'active':''} onClick={()=>setGuardFilter(k)}>{k}</button>)}</div>}
    <ProfessionalList type={section} records={section==='guards'?lists.guards.filter(g=>guardFilter==='Todas'||g.kind===guardFilter):lists[section]} onEdit={open} onDelete={onDelete} onDuplicate={duplicate} query={search}/>

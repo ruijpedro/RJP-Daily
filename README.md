@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.16 — Backups JSON completos e importação segura
+# Agenda RJP v1.1.17 — Acesso profissional rápido
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -210,3 +210,7 @@ Documentação técnica do componente: https://capgo.app/docs/plugins/updater/ap
 
 ## v1.1.16 — Backup JSON
 Exportação Android usa anexo nativo; backup completo da agenda e IP. Importação aceita formatos anteriores, valida antes de confirmar e mantém registos com IDs diferentes. Alternativa Mostrar/Colar JSON. A partilha deve ser guardada fora da app. OTA sobre APK 1.1.14.
+
+## v1.1.17
+- Separadores Deslocações e Avisos IP na navegação principal e atalhos no Início. Definições no botão da barra superior.
+- Avisos de todas as datas, filtros por estado e acesso ao registo original. A lista não confirma entrega Android.
