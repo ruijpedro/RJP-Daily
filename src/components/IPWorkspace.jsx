@@ -123,7 +123,7 @@ export default function IPWorkspace({initialSection='resumo',data,setData,onPers
    <p className="fineprint">Estes relatórios são registos auxiliares e não substituem formulários oficiais da IP.</p>
   </div>
   <div className="settings-card"><div className="settings-title"><Save size={21}/><h2>Histórico e migração IP_RJP</h2></div><p>Exporta a base profissional completa ou importa um backup JSON da antiga IP_RJP. A importação permite conservar deslocações, prevenções, atividades, viaturas e destinos.</p><div className="settings-row"><button className="light-action" onClick={()=>runExport(()=>exportIPJSON(data))}><Download size={16}/> Backup profissional</button><button className="light-action" onClick={()=>importRef.current?.click()}><Upload size={16}/> Importar IP_RJP</button></div>
-   <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={async e=>{if(e.target.files?.[0])await onImport(e.target.files[0]);e.target.value='';}}/>
+   <input ref={importRef} type="file" accept="*/*" hidden onChange={async e=>{const input=e.currentTarget;const file=input.files?.[0];if(file)await onImport(file);input.value='';}}/>
   </div>
  </>}
  {formType&&<div className="modal-backdrop"><form className="modal ip-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label={`Registar ${labels[formType]}`}>

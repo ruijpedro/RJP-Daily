@@ -6,14 +6,15 @@ import { SpeechRecognition } from '@capgo/capacitor-speech-recognition';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   Bell, BellRing, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
-  Cloud, CloudOff, Download, Edit3, FileText, Filter, Headphones, Home, Info, ListTodo,
+  Cloud, CloudOff, Copy, Download, Edit3, FileText, Filter, Headphones, Home, Info, ListTodo,
   Loader2, Mic, MicOff, MoreVertical, Phone, Plus, RefreshCw, RotateCcw, Search,
   Settings2, ShieldCheck, SquarePen, StickyNote, Trash2, Upload, X, BriefcaseBusiness, CarFront
 } from 'lucide-react';
 import { parsePtCommand, localDateTime, relativeDay } from './logic/parse.js';
 import IPWorkspace from './components/IPWorkspace.jsx';
-import {loadIP,saveIP,makeProfessionalAgenda,parseIPVoice,importIPBackup,localDay,newId} from './ip/model.js';
-import { loadItems, saveItems, downloadBackup, readBackup } from './services/storage.js';
+import {loadIP,saveIP,makeProfessionalAgenda,parseIPVoice,importIPBackup,normalizeIP,localDay,newId} from './ip/model.js';
+import { loadItems, saveItems, downloadBackup } from './services/storage.js';
+import {makeBackup,parseBackupText,readJsonText,mergeById} from './logic/backup.js';
 import {
   permissionStatus, requestNotificationPermission, requestExactSetting,
   scheduleItem, cancelItem, onNotificationAction, scheduleDailySummary, stopDailySummary
@@ -93,6 +94,10 @@ function App(){
  const [permissions,setPermissions]=useState({});
  const [dailySummary,setDailySummary]=useState(()=>localStorage.getItem('rjp-daily-summary')==='1');
  const fileInput=useRef(null);
+ const [backupText,setBackupText]=useState('');
+ const [backupDraft,setBackupDraft]=useState(null);
+ const [backupBusy,setBackupBusy]=useState(false);
+ const [backupMode,setBackupMode]=useState('');
  const webDelivered=useRef(new Set());
  const [clock,setClock]=useState(()=>new Date());
  const [otaStatus,setOtaStatus]=useState({type:'idle',message:'Verificação automática ao abrir a app.'});
@@ -429,14 +434,41 @@ function App(){
   setDailySummary(next);localStorage.setItem('rjp-daily-summary',next?'1':'0');notify(next?'Resumo diário ativado para as 08h00.':'Resumo diário desativado.');
  }
  async function importBackup(file){
+  setBackupDraft(null);
+  try{setBackupDraft(parseBackupText(await readJsonText(file)));setTab('definicoes');notify('Backup lido. Confirma os registos a importar.');}
+  catch(e){notify(e.message||'Não foi possível ler o backup.');}
+ }
+ function previewBackupText(){
+  setBackupDraft(null);
+  try{setBackupDraft(parseBackupText(backupText));notify('JSON validado. Confirma a importação.');}catch(e){notify(e.message);}
+ }
+ async function exportCompleteBackup(){
+  setBackupBusy(true);
+  try{const mode=await downloadBackup(items,ipData);notify(mode==='share'?'Escolhe onde guardar o JSON na janela de partilha (ex.: Drive).':'Backup JSON descarregado.');}
+  catch(e){notify('Falha na exportação: '+(e.message||'erro de ficheiro')+'. Podes usar Mostrar JSON.');}
+  finally{setBackupBusy(false);}
+ }
+ async function applyBackup(){
+  if(!backupDraft)return;
+  setBackupBusy(true);
   try{
-   const imported=await readBackup(file);
-   if(!window.confirm(`Importar ${imported.length} registos? Os registos existentes com o mesmo ID serão substituídos.`))return;
-   const map=new Map(items.map(i=>[i.id,i]));imported.forEach(i=>map.set(i.id,{...i,notificationId:i.notificationId||numericId()}));
-   const next=Array.from(map.values());setItems(next);
-   for(const i of next){if(i.when&&!i.done&&new Date(i.when)>new Date())await scheduleItem(i);}
-   notify(`${imported.length} registos importados.`);
-  }catch(e){notify(e.message)}
+   const parsed=backupDraft;
+   const imported=parsed.items?.map(i=>({...i,notificationId:i.notificationId||numericId()}))||[];
+   const data=parsed.ip?normalizeIP(parsed.ip):null;
+   const nextItems=parsed.items?mergeById(items,imported):items;
+   let nextIP=ipData;
+   if(data){
+    nextIP={...ipData,profile:{...ipData.profile,...data.profile},vehicles:[...new Map([...ipData.vehicles,...data.vehicles].map(v=>[v.plate,v])).values()],defaultVehiclePlate:data.defaultVehiclePlate||ipData.defaultVehiclePlate,places:[...new Set([...ipData.places,...data.places])],activityTypes:[...new Set([...ipData.activityTypes,...data.activityTypes])]};
+    for(const key of ['trips','guards','activities'])nextIP[key]=mergeById(ipData[key],data[key]);
+   }
+   // Preservar uma cópia local anterior à importação; nunca apagar a base atual.
+   localStorage.setItem('rjp-daily-before-import',JSON.stringify(makeBackup(items,ipData)));
+   saveItems(nextItems);saveIP(nextIP);setItems(nextItems);setIPData(nextIP);
+   setBackupDraft(null);setBackupText('');setBackupMode('');
+   notify('Importação concluída: '+imported.length+' registos de agenda e '+(data?data.trips.length+data.guards.length+data.activities.length:0)+' profissionais. Os restantes foram mantidos.');
+   for(const i of imported){if(i.when&&!i.done&&new Date(i.when)>new Date())await scheduleItem(i).catch(()=>{});}
+  }catch(e){notify('Falha ao importar: '+e.message);}
+  finally{setBackupBusy(false);}
  }
  const ipAgendaGoogle=(key,r)=>({
   kind:'evento', title:key==='trips'?`Deslocação IP: ${r.from} → ${r.to}`:key==='guards'?`Prevenção ${r.kind} · IP`: `${r.type||'Atividade'} · ${r.place||'IP'}`,
@@ -481,20 +513,7 @@ function App(){
   }
   notify('Registo profissional eliminado.');
  }
- async function importProfessional(file){
-  try{
-   const data=await importIPBackup(file);
-   const count=data.trips.length+data.guards.length+data.activities.length;
-   if(!window.confirm(`Importar ${count} registos profissionais? Os IDs existentes serão atualizados; os restantes registos serão mantidos.`))return;
-   const collections=['trips','guards','activities'];
-   setIPData(prev=>{
-    const next={...prev,vehicles:[...new Map([...prev.vehicles,...data.vehicles].map(v=>[v.plate,v])).values()],places:[...new Set([...prev.places,...data.places])],activityTypes:[...new Set([...prev.activityTypes,...data.activityTypes])]};
-    for(const key of collections){const map=new Map(prev[key].map(v=>[v.id,v]));for(const item of data[key])map.set(item.id,item);next[key]=Array.from(map.values());}
-    return next;
-   });
-   notify(`${count} registos do backup IP_RJP importados. Reabre os registos com aviso para reagendar notificações.`);
-  }catch(e){notify('Importação profissional: '+e.message)}
- }
+ async function importProfessional(file){await importBackup(file);}
  const openProfessional=()=>setTab('ip');
  const openGuards=()=>setTab('prevencoes');
  const dateTitle=clock.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -643,9 +662,14 @@ function App(){
        <button type="button" className="light-action" disabled={otaStatus.type==='checking'||otaStatus.type==='downloading'} onClick={()=>{void checkForOta({force:true,onStatus:setOtaStatus})}}><RefreshCw size={16}/> Verificar atualização</button>
        <p className="fineprint">OTA atualiza a agenda, interface e correções Web automaticamente. A base Android com widgets e atalhos (1.1.14) recebe as futuras atualizações compatíveis. Alterações a widgets, permissões, plugins nativos ou assinatura exigem uma nova APK. O repositório de distribuição GitHub tem de ser público e possuir uma release OTA válida. Na WebApp usa-se a publicação web.</p>
       </div>
-      <div className="settings-card"><div className="settings-title"><Download size={21}/><h2>Cópia de segurança</h2></div><p>Notas e tarefas estão guardadas apenas neste dispositivo. Faz uma cópia antes de trocar de telemóvel.</p>
-       <div className="settings-row"><button className="light-action" onClick={()=>downloadBackup(items)}><Download size={16}/> Exportar JSON</button><button className="light-action" onClick={()=>fileInput.current?.click()}><Upload size={16}/> Importar JSON</button></div>
-       <input type="file" ref={fileInput} hidden accept="application/json,.json" onChange={async e=>{const f=e.target.files?.[0];if(f)await importBackup(f);e.target.value='';}}/>
+      <div className="settings-card"><div className="settings-title"><Download size={21}/><h2>Cópia de segurança</h2></div>
+       <p>Backup completo: notas, tarefas, compromissos locais, deslocações, prevenções, atividades e viaturas. Os eventos Google são consultados na conta Google.</p>
+       <div className="settings-row"><button type="button" className="light-action" disabled={backupBusy} onClick={exportCompleteBackup}><Download size={16}/> Exportar JSON completo</button><label className="light-action"><Upload size={16}/> Importar ficheiro<input ref={fileInput} type="file" style={{position:'absolute',width:1,height:1,opacity:0}} accept={Capacitor.isNativePlatform()?'*/*':'.json,application/json'} onChange={async e=>{const input=e.currentTarget;const file=input.files?.[0];if(file)await importBackup(file);input.value='';}}/></label></div>
+       <p className="fineprint">No Android, escolhe Drive ou outra app para guardar o ficheiro na janela de partilha. Se o seletor não abrir, usa Colar JSON.</p>
+       <div className="settings-row"><button type="button" className="light-action" onClick={()=>{setBackupMode('export');setBackupText(JSON.stringify(makeBackup(items,ipData),null,2));}}><Copy size={16}/> Mostrar JSON</button><button type="button" className="light-action" onClick={()=>{setBackupMode('import');setBackupText('');setBackupDraft(null);}}>Colar JSON</button></div>
+       {backupMode&&<div><textarea className="text-field" rows={6} aria-label="Conteúdo JSON" value={backupText} readOnly={backupMode==='export'} onChange={e=>setBackupText(e.target.value)} placeholder="Cola aqui o conteúdo do backup JSON"/>
+        <div className="settings-row">{backupMode==='import'?<button type="button" className="light-action" onClick={previewBackupText}>Validar JSON</button>:<button type="button" className="light-action" onClick={async()=>{try{await navigator.clipboard.writeText(backupText);notify('JSON copiado.');}catch{notify('Seleciona o texto e copia manualmente.');}}}>Copiar JSON</button>}<button type="button" className="light-action" onClick={()=>{setBackupMode('');setBackupText('');}}>Fechar</button></div></div>}
+       {backupDraft&&<div role="status" className="info-note"><div><strong>Confirmar importação</strong><p>{backupDraft.items?.length||0} registos de agenda · {backupDraft.ip?backupDraft.ip.trips.length+backupDraft.ip.guards.length+backupDraft.ip.activities.length:0} registos profissionais.</p><p>Os IDs coincidentes serão atualizados. Os outros registos serão mantidos.</p><div className="settings-row"><button type="button" className="primary-action" disabled={backupBusy} onClick={applyBackup}>Confirmar importação</button><button type="button" className="light-action" onClick={()=>setBackupDraft(null)}>Cancelar</button></div></div></div>}
       </div>
       <div className="info-note"><Info size={18}/><p>Versão {APP_VERSION} · Português de Portugal. A análise dos comandos de voz é local à aplicação; o reconhecimento pode depender dos serviços de voz do dispositivo. A WebApp necessita de estar aberta para avisos do navegador.</p></div>
     </>}

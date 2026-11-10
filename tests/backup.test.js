@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {makeBackup,parseBackupText,readJsonText,mergeById} from '../src/logic/backup.js';
+const item={id:'a',kind:'tarefa',title:'Verificação João'};
+const ip={trips:[{id:'t',date:'2026-11-10'}],guards:[{id:'g',date:'2026-11-10',kind:'BT'}],activities:[],vehicles:[]};
+test('backup completo conserva caracteres e ambos os módulos',()=>{const data=parseBackupText(JSON.stringify(makeBackup([item],ip)));assert.deepEqual(data.items,[item]);assert.deepEqual(data.ip,ip);});
+test('aceita backup antigo e BOM',()=>{assert.deepEqual(parseBackupText('\uFEFF'+JSON.stringify({app:'RJP Daily',items:[item]})).items,[item]);assert.deepEqual(parseBackupText(JSON.stringify({app:'RJP Daily',module:'IP_RJP',ip})).ip,ip);});
+test('rejeita JSON malformado e registos inválidos',()=>{assert.throws(()=>parseBackupText('{'));assert.throws(()=>parseBackupText(JSON.stringify({app:'Agenda RJP',items:[{id:'a'}]})));assert.throws(()=>parseBackupText(JSON.stringify({ip:{...ip,guards:[{date:'2026-11-10',kind:'X'}]}})));});
+test('merge conserva registos não importados',()=>{assert.deepEqual(mergeById([item,{id:'b'}],[{...item,title:'Novo'}]),[{...item,title:'Novo'},{id:'b'}]);});
+test('leitura de ficheiro moderno',async()=>{const raw=JSON.stringify(makeBackup([item],ip));assert.equal(await readJsonText({text:async()=>raw}),raw);});

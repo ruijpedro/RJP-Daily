@@ -2,6 +2,7 @@ import {Capacitor} from '@capacitor/core';
 import {Filesystem,Directory} from '@capacitor/filesystem';
 import {Share} from '@capacitor/share';
 import {durationMinutes,minsText} from './model.js';
+import {saveJsonFile} from '../services/backup-file.js';
 
 async function download(name,content,type){
  const blob=content instanceof Blob?content:new Blob([content],{type});
@@ -64,4 +65,4 @@ export async function exportIPPDF(payload){
  const pages=pdf.internal.getNumberOfPages();for(let p=1;p<=pages;p++){pdf.setPage(p);pdf.setFontSize(8);pdf.text(`RJP Daily | ${payload.month} | ${p}/${pages}`,15,292);}
  await download(`RJP_Daily_IP_${payload.month}.pdf`,pdf.output('blob'),'application/pdf');
 }
-export async function exportIPJSON(data){await download(`RJP_Daily_IP_Backup_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({app:'RJP Daily',module:'IP_RJP',version:2,exportedAt:new Date().toISOString(),ip:data},null,2),'application/json');}
+export async function exportIPJSON(data){return saveJsonFile('Agenda-RJP-IP-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({app:'RJP Daily',module:'IP_RJP',version:2,exportedAt:new Date().toISOString(),ip:data},null,2));}

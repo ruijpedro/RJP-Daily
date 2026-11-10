@@ -1,5 +1,6 @@
 /** Dados profissionais baseados na estrutura do projeto IP_RJP (versão 2.5). */
 import { parsePtCommand } from '../logic/parse.js';
+import {parseBackupText,readJsonText} from '../logic/backup.js';
 export const IP_KEY='rjp-daily-ip-v2';
 export const defaults={
   profile:{appName:'RJP Daily',professionalModule:'IP_RJP',author:'Rui Jorge Pedro',organization:'Infraestruturas de Portugal'},
@@ -56,11 +57,9 @@ export function loadIP(){try{const saved=localStorage.getItem(IP_KEY);return sav
 export function saveIP(data){localStorage.setItem(IP_KEY,JSON.stringify(data));}
 export function asIPBackup(data){return {app:'RJP Daily',module:'IP_RJP',version:2,exportedAt:new Date().toISOString(),ip:normalizeIP(data)};}
 export async function importIPBackup(file){
- const input=JSON.parse(await file.text());
- // Compatibilidade com exportações e backups da antiga IP_RJP, que guardavam os dados diretamente.
- let value=input?.module==='IP_RJP'?input.ip:input?.ip??input;
- if(!value || !Array.isArray(value.trips) || !Array.isArray(value.guards) || !Array.isArray(value.activities))throw new Error('Este ficheiro não contém um backup válido da IP_RJP.');
- return normalizeIP(value);
+ const {ip}=parseBackupText(await readJsonText(file));
+ if(!ip)throw new Error('Este ficheiro não contém um backup válido da IP_RJP.');
+ return normalizeIP(ip);
 }
 export function durationMinutes(start,end){
  if(!/^\d{2}:\d{2}$/.test(start||'')||!/^\d{2}:\d{2}$/.test(end||''))return 0;

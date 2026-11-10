@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.15 — OTA sobre a base Android 1.1.14
+# Agenda RJP v1.1.16 — Backups JSON completos e importação segura
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -207,3 +207,6 @@ Documentação técnica do componente: https://capgo.app/docs/plugins/updater/ap
 - Base nativa validada: APK assinada 1.1.14 (widgets com atalhos). As versões inferiores não recebem este bundle.
 - O workflow usa automaticamente a baseline e verifica também a árvore de fontes dos widgets. Alterações nativas continuam bloqueadas.
 - Atualização Web: informação mais clara sobre OTA nas Definições. Não é necessário reinstalar a APK 1.1.14.
+
+## v1.1.16 — Backup JSON
+Exportação Android usa anexo nativo; backup completo da agenda e IP. Importação aceita formatos anteriores, valida antes de confirmar e mantém registos com IDs diferentes. Alternativa Mostrar/Colar JSON. A partilha deve ser guardada fora da app. OTA sobre APK 1.1.14.
