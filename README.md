@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.14 — Widgets com atalhos e cores
+# Agenda RJP v1.1.15 — OTA sobre a base Android 1.1.14
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -202,3 +202,8 @@ Documentação técnica do componente: https://capgo.app/docs/plugins/updater/ap
 - Datas curtas, próximo compromisso futuro e cores por tipo.
 - Widget 4×3: + abre o editor, VOZ abre o ditado e ABRIR abre a agenda.
 - Requer nova APK assinada (não OTA). Os dados Google continuam a ser os últimos sincronizados na app; sem chamadas Google autónomas em segundo plano.
+
+## v1.1.15 — Retoma OTA
+- Base nativa validada: APK assinada 1.1.14 (widgets com atalhos). As versões inferiores não recebem este bundle.
+- O workflow usa automaticamente a baseline e verifica também a árvore de fontes dos widgets. Alterações nativas continuam bloqueadas.
+- Atualização Web: informação mais clara sobre OTA nas Definições. Não é necessário reinstalar a APK 1.1.14.

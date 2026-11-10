@@ -30,6 +30,9 @@ try {
   const allowed=[baseline.patchAndroidGitBlobSha,...(baseline.allowedCosmeticPatchBlobShas||[])];
   assert.ok(allowed.includes(patchSha),
     'Script Android modificado fora das versões cosméticas auditadas: é necessária uma nova APK');
+  // O widget é código nativo separado do script de geração.
+  const widgetTree = execFileSync('git', ['rev-parse', 'HEAD:native-widget'], {encoding:'utf8'}).trim();
+  assert.equal(widgetTree,baseline.nativeWidgetTreeSha,'Widgets Android mudaram: é necessária uma nova APK');
   console.log('Compatibilidade OTA validada: APK >= ' + minNative + ', bundle ' + pkg.version);
 } catch (err) {
   console.error('OTA bloqueada por segurança:', err.message);

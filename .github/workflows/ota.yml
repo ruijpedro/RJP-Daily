@@ -9,9 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       min_native_version:
-        description: 'APK mínima compatível (base atual: 1.1.5)'
-        required: true
-        default: '1.1.5'
+        description: 'APK mínima compatível (deixar vazio para usar a base nativa validada)'
+        required: false
       notes:
         description: 'Resumo das alterações sem dados pessoais'
         required: false
@@ -36,7 +35,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RJP_MIN_NATIVE: ${{ inputs.min_native_version || '1.1.5' }}
+          RJP_MIN_NATIVE: ${{ inputs.min_native_version || '' }}
           RJP_RELEASE_NOTES: ${{ inputs.notes || 'Melhorias e correções da RJP Daily' }}
         run: bash scripts/publish-ota.sh
       - uses: actions/upload-artifact@v4

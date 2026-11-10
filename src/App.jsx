@@ -641,7 +641,7 @@ function App(){
        <div className="setting-line"><span>Versão da app</span><span className="setting-value">{APP_VERSION}</span></div>
        <div className="setting-line"><span>Estado</span><span className="setting-value" role="status">{otaStatus.message||'Por verificar'}</span></div>
        <button type="button" className="light-action" disabled={otaStatus.type==='checking'||otaStatus.type==='downloading'} onClick={()=>{void checkForOta({force:true,onStatus:setOtaStatus})}}><RefreshCw size={16}/> Verificar atualização</button>
-       <p className="fineprint">OTA atualiza HTML, CSS e JavaScript. Alterações a permissões, plugins nativos ou assinatura exigem uma nova APK. O repositório de distribuição GitHub tem de ser público e possuir uma release OTA válida. Na WebApp usa-se a publicação web.</p>
+       <p className="fineprint">OTA atualiza a agenda, interface e correções Web automaticamente. A base Android com widgets e atalhos (1.1.14) recebe as futuras atualizações compatíveis. Alterações a widgets, permissões, plugins nativos ou assinatura exigem uma nova APK. O repositório de distribuição GitHub tem de ser público e possuir uma release OTA válida. Na WebApp usa-se a publicação web.</p>
       </div>
       <div className="settings-card"><div className="settings-title"><Download size={21}/><h2>Cópia de segurança</h2></div><p>Notas e tarefas estão guardadas apenas neste dispositivo. Faz uma cópia antes de trocar de telemóvel.</p>
        <div className="settings-row"><button className="light-action" onClick={()=>downloadBackup(items)}><Download size={16}/> Exportar JSON</button><button className="light-action" onClick={()=>fileInput.current?.click()}><Upload size={16}/> Importar JSON</button></div>

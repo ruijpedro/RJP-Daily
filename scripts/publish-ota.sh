@@ -2,7 +2,8 @@
 set -euo pipefail
 
 VERSION="$(node -p 'require("./package.json").version')"
-MIN_NATIVE="${RJP_MIN_NATIVE:-1.1.5}"
+BASE_NATIVE="$(node -p 'require("./config/ota-native-baseline.json").nativeVersion')"
+MIN_NATIVE="${RJP_MIN_NATIVE:-$BASE_NATIVE}"
 RELEASE_NOTES="${RJP_RELEASE_NOTES:-Melhorias e correções da RJP Daily}"
 TAG="ota-v$VERSION"
 ASSET="rjp-daily-web.zip"

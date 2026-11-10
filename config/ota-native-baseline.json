@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.5",
+  "nativeVersion": "1.1.14",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -15,7 +15,7 @@
   },
   "capacitorConfig": {
     "appId": "pt.rjp.daily",
-    "appName": "RJP Daily",
+    "appName": "Agenda RJP",
     "webDir": "dist",
     "server": {
       "androidScheme": "https"
@@ -42,8 +42,7 @@
       }
     }
   },
-  "patchAndroidGitBlobSha": "2b9c5e2fc8b9ab179f2369600d9d0a7b81a9b8c6",
-  "allowedCosmeticPatchBlobShas": [
-    "6ce19dbf3652cc8a3724ed2972cfa8f33ffec460"
-  ]
+  "patchAndroidGitBlobSha": "a424821e62099e36bfd8ec9451c67d9347145b70",
+  "allowedCosmeticPatchBlobShas": [],
+  "nativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
 }
