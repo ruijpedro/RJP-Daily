@@ -404,6 +404,7 @@ function App(){
  // Atalhos do widget: URI explícito Android, validado no arranque e em execução.
  const widgetActionRef=useRef(null);
  widgetActionRef.current=(action)=>{
+   if(action==='alerts'){setModal(null);setTab('avisos');return;}
    const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
    if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(connected&&autoGoogleNew)}));}
    else if(action==='voice'){void startVoice();}
@@ -412,7 +413,7 @@ function App(){
    if(Capacitor.getPlatform()!=='android')return;
    let active=true,subscription=null,lastUrl='',lastAt=0;
    const handle=({url}={})=>{
-     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice)$/.test(url||''))return;
+     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts)$/.test(url||''))return;
      if(url===lastUrl&&Date.now()-lastAt<1500)return;
      lastUrl=url;lastAt=Date.now();
      widgetActionRef.current?.(url.split('/').pop());

@@ -23,4 +23,10 @@
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="Abrir agenda" android:textColor="#8FD8CE"
         android:maxLines="2" android:ellipsize="end" android:textSize="11sp"/>
+    <TextView android:id="@+id/widget_ip_alerts"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="AVISOS IP  ›" android:contentDescription="Abrir notificações profissionais"
+        android:paddingTop="5dp" android:paddingBottom="3dp"
+        android:gravity="center" android:textStyle="bold"
+        android:textColor="#FFD187" android:textSize="11sp"/>
 </LinearLayout>

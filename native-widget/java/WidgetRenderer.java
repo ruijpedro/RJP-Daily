@@ -52,6 +52,7 @@ final class WidgetRenderer {
             full ? R.layout.widget_agenda_full : R.layout.widget_agenda_compact);
         PendingIntent click = widgetIntent(context, "agenda", 4504);
         view.setOnClickPendingIntent(R.id.widget_root, click);
+        view.setOnClickPendingIntent(R.id.widget_ip_alerts, widgetIntent(context, "alerts", 4507));
         if (full) {
             view.setOnClickPendingIntent(R.id.widget_open, click);
             view.setOnClickPendingIntent(R.id.widget_add, widgetIntent(context, "new", 4505));

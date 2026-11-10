@@ -31,6 +31,12 @@
     <TextView android:id="@+id/widget_row_2" style="@style/AgendaWidgetRow"/>
     <TextView android:id="@+id/widget_row_3" style="@style/AgendaWidgetRow"/>
     <TextView android:id="@+id/widget_row_4" style="@style/AgendaWidgetRow"/>
+    <TextView android:id="@+id/widget_ip_alerts"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="AVISOS IP  ›" android:contentDescription="Abrir notificações profissionais"
+        android:paddingTop="6dp" android:paddingBottom="6dp"
+        android:gravity="center" android:textStyle="bold"
+        android:textColor="#FFD187" android:textSize="12sp"/>
     <TextView android:id="@+id/widget_updated"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="5dp" android:text="Sincronizado ao abrir a app"
