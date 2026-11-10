@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VERSION="$(node -p 'require("./package.json").version')"
-BASE_NATIVE="$(node -p 'require("./config/ota-native-baseline.json").nativeVersion')"
+BASE_NATIVE="$(node -p '(()=>{const b=require("./config/ota-native-baseline.json");return b.compatibleMinNativeVersion||b.nativeVersion})()')"
 MIN_NATIVE="${RJP_MIN_NATIVE:-$BASE_NATIVE}"
 RELEASE_NOTES="${RJP_RELEASE_NOTES:-Melhorias e correções da RJP Daily}"
 TAG="ota-v$VERSION"

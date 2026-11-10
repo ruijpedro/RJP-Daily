@@ -9,7 +9,8 @@ import { compareVersions, parseVersion } from '../src/logic/ota-release.js';
 const baseline = JSON.parse(readFileSync('config/ota-native-baseline.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const capacitor = JSON.parse(readFileSync('capacitor.config.json', 'utf8'));
-const minNative = process.argv[2] || baseline.nativeVersion;
+const compatibleMin = baseline.compatibleMinNativeVersion || baseline.nativeVersion;
+const minNative = process.argv[2] || compatibleMin;
 const deps = Object.fromEntries(
   Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })
     .filter(([name]) => /^(@capacitor\/|@capgo\/|capacitor-)/.test(name))
@@ -19,7 +20,9 @@ const patchSha = execFileSync('git', ['hash-object', 'scripts/patch-android.mjs'
 try {
   assert.ok(parseVersion(minNative), 'Versão mínima Android inválida');
   assert.ok(parseVersion(pkg.version), 'Versão OTA inválida');
-  assert.ok(compareVersions(minNative, baseline.nativeVersion) >= 0, 'A versão mínima não pode anteceder a APK base');
+  assert.ok(parseVersion(compatibleMin) && compareVersions(compatibleMin,baseline.nativeVersion)<=0, 'Intervalo de compatibilidade inválido');
+  assert.ok(compareVersions(minNative, compatibleMin) >= 0, 'A versão mínima não pode anteceder a APK compatível auditada');
+  if(compareVersions(compatibleMin,baseline.nativeVersion)<0)assert.ok(baseline.compatibilityAudit?.from===compatibleMin&&baseline.compatibilityAudit?.through===baseline.nativeVersion,'Compatibilidade retroativa não auditada');
   assert.ok(compareVersions(pkg.version, minNative) > 0, 'A versão OTA tem de ser superior à versão Android mínima');
   assert.deepEqual(deps, baseline.nativeDependencies, 'Dependências nativas mudaram: é necessária uma nova APK');
   // O nome visto sob o ícone Android é cosmético: não altera plugins,

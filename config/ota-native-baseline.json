@@ -44,5 +44,12 @@
   },
   "patchAndroidGitBlobSha": "a424821e62099e36bfd8ec9451c67d9347145b70",
   "allowedCosmeticPatchBlobShas": [],
-  "nativeWidgetTreeSha": "a9a92212655ea43db287dcb86de5ada4cdb19d29"
+  "nativeWidgetTreeSha": "a9a92212655ea43db287dcb86de5ada4cdb19d29",
+  "compatibleMinNativeVersion": "1.1.14",
+  "compatibilityAudit": {
+    "from": "1.1.14",
+    "through": "1.1.18",
+    "reason": "O único delta nativo entre estas APKs é o atalho Avisos IP nos layouts/renderer. O plugin AgendaWidget, MainActivity, dependências e configuração permanecem iguais; o bundle Web suporta ambas.",
+    "olderNativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
+  }
 }

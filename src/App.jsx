@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
-import { checkForOta, hasAndroidOta, APP_VERSION } from './services/ota.js';
+import { checkForOta, hasAndroidOta, APP_VERSION, otaNativeVersion, applyPendingOta } from './services/ota.js';
 import { SpeechRecognition } from '@capgo/capacitor-speech-recognition';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
@@ -102,6 +102,8 @@ function App(){
  const webDelivered=useRef(new Set());
  const [clock,setClock]=useState(()=>new Date());
  const [otaStatus,setOtaStatus]=useState({type:'idle',message:'Verificação automática ao abrir a app.'});
+ const [nativeVersion,setNativeVersion]=useState(null);
+ useEffect(()=>{void otaNativeVersion().then(setNativeVersion)},[]);
  const lastOtaNotice=useRef('');
 
  const notify=(s)=>{setToast(s);};
@@ -680,9 +682,11 @@ function App(){
       <div className="settings-card"><div className="settings-title"><RefreshCw size={21}/><h2>Atualização OTA</h2></div>
        <p>Na APK Android, a app procura versões novas automaticamente ao abrir e quando regressas à aplicação. Descarrega-as sem precisares de carregar num botão; serão ativadas depois de fechares e voltares a abrir. As notas, prevenções e deslocações não são apagadas.</p>
        <div className="setting-line"><span>Versão da app</span><span className="setting-value">{APP_VERSION}</span></div>
+       {hasAndroidOta()&&<div className="setting-line"><span>APK Android instalada</span><span className="setting-value">{nativeVersion||'A identificar…'}</span></div>}
        <div className="setting-line"><span>Estado</span><span className="setting-value" role="status">{otaStatus.message||'Por verificar'}</span></div>
        <button type="button" className="light-action" disabled={otaStatus.type==='checking'||otaStatus.type==='downloading'} onClick={()=>{void checkForOta({force:true,onStatus:setOtaStatus})}}><RefreshCw size={16}/> Verificar atualização</button>
-       <p className="fineprint">OTA atualiza a agenda, interface e correções Web automaticamente. A base Android com widgets e atalhos (1.1.14) recebe as futuras atualizações compatíveis. Alterações a widgets, permissões, plugins nativos ou assinatura exigem uma nova APK. O repositório de distribuição GitHub tem de ser público e possuir uma release OTA válida. Na WebApp usa-se a publicação web.</p>
+       {otaStatus.type==='ready'&&<button type="button" className="primary-action" onClick={()=>void applyPendingOta(setOtaStatus)}><Download size={16}/> Aplicar agora</button>}
+       <p className="fineprint">OTA atualiza a agenda, interface e correções Web automaticamente. As APK 1.1.14 e 1.1.18 recebem esta atualização. O atalho Avisos IP nos widgets requer APK 1.1.18. Alterações a widgets, permissões, plugins nativos ou assinatura exigem uma nova APK. O repositório de distribuição GitHub tem de ser público e possuir uma release OTA válida. Na WebApp usa-se a publicação web.</p>
       </div>
       <div className="settings-card"><div className="settings-title"><Download size={21}/><h2>Cópia de segurança</h2></div>
        <p>Backup completo: notas, tarefas, compromissos locais, deslocações, prevenções, atividades e viaturas. Os eventos Google são consultados na conta Google.</p>

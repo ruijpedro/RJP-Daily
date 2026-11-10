@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.20 — Centro de avisos profissionais
+# Agenda RJP v1.1.21 — OTA compatível e diagnóstico
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -225,3 +225,8 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 
 ## v1.1.20
 - Filtro Hoje mostra apenas avisos do dia. Edição de lembretes adiados mantém a hora local; editar um registo não reabre um aviso concluído quando a hora não mudou.
+
+## v1.1.21
+- Recupera OTA para APK 1.1.14 e 1.1.18 após auditoria de compatibilidade; os widgets antigos mantêm os seus botões originais.
+- Mostra versão Web e APK Android separadamente, identifica atualizações bloqueadas por versão nativa e permite aplicar bundle preparado imediatamente.
+- Mantém verificação das fontes nativas e checksum.

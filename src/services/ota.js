@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { version as WEB_VERSION } from '../../package.json';
-import { chooseUpdate } from '../logic/ota-release.js';
+import { chooseUpdate, compareVersions } from '../logic/ota-release.js';
 
 export const APP_VERSION = WEB_VERSION;
 const REPO = import.meta.env.VITE_RJP_OTA_REPO || 'ruijpedro/RJP-Daily';
@@ -11,6 +11,19 @@ const CHECK_COOLDOWN_MS=30*60*1000;
 let activeCheck=null;
 let lastCheckAt=0;
 let stagedVersion=null;
+export async function otaNativeVersion(){
+ if(!hasAndroidOta())return null;
+ try{return (await App.getInfo()).version||null;}catch{return null;}
+}
+export async function applyPendingOta(onStatus=()=>{}){
+ if(!hasAndroidOta())return;
+ try{
+  const next=await CapacitorUpdater.getNextBundle();
+  if(!next?.id){onStatus({type:'current',message:'Não existe atualização preparada. Verifica novamente.'});return;}
+  onStatus({type:'applying',message:'A aplicar a atualização '+next.version+'…'});
+  await CapacitorUpdater.set({id:next.id});
+ }catch(e){onStatus({type:'error',message:'Não foi possível aplicar: '+(e?.message||'erro Android')});}
+}
 export const hasAndroidOta = () => Capacitor.getPlatform()==='android';
 
 /** Confirm a newly activated bundle promptly, otherwise native rollback is triggered. */
@@ -42,12 +55,23 @@ export async function checkForOta({force=false,onStatus=()=>{}}={}) {
       const [appInfo, current, releases] = await Promise.all([
         App.getInfo(), CapacitorUpdater.current(), fetchReleases()
       ]);
-      const installedVersion=current?.bundle?.version && current.bundle.version!=='builtin'
-        ? current.bundle.version : APP_VERSION;
+      // A versão do JS em execução é a fonte de verdade, mesmo após rollback.
+      const installedVersion=APP_VERSION;
       const nativeVersion=appInfo?.version || APP_VERSION;
       const release=chooseUpdate(releases,installedVersion,nativeVersion,REPO);
-      if (!release) { onStatus({type:'current',message:`Versão ${installedVersion} atualizada.`}); return; }
-      if (stagedVersion===release.version) {
+      if (!release) {
+        const newest=chooseUpdate(releases,installedVersion,'999.999.999',REPO);
+        if(newest&&compareVersions(nativeVersion,newest.minNative)<0){
+          onStatus({type:'native-required',nativeVersion,message:`APK ${nativeVersion}: a atualização ${newest.version} requer APK ${newest.minNative} ou superior.`});
+        }else onStatus({type:'current',nativeVersion,message:`Versão ${installedVersion} atualizada (APK ${nativeVersion}).`});
+        return;
+      }
+      const pending=await CapacitorUpdater.getNextBundle().catch(()=>null);
+      if(pending?.id&&pending.version===release.version){
+        stagedVersion=release.version;
+        onStatus({type:'ready',version:release.version,nativeVersion,message:`Atualização ${release.version} preparada. Carrega em Aplicar agora.`});return;
+      }
+      if (stagedVersion===release.version && pending?.id) {
         onStatus({type:'ready',version:release.version,message:`Versão ${release.version} preparada; será aplicada ao reabrir a app.`});return;
       }
       onStatus({type:'downloading',version:release.version,message:`A descarregar atualização ${release.version}…`});
@@ -56,7 +80,7 @@ export async function checkForOta({force=false,onStatus=()=>{}}={}) {
       if (!bundle?.id) throw new Error('A transferência não devolveu um identificador válido.');
       await CapacitorUpdater.next({id:bundle.id});
       stagedVersion=release.version;
-      onStatus({type:'ready',version:release.version,message:`Atualização ${release.version} preparada. Será aplicada ao fechar e reabrir a app.`});
+      onStatus({type:'ready',version:release.version,message:`Atualização ${release.version} preparada. Carrega em Aplicar agora ou reabre a app.`});
     } catch(e) {
       onStatus({type:'error',message:`Atualização OTA: ${e?.message||'erro de ligação'}`});
       if (!force) console.warn('RJP Daily OTA:', e);
