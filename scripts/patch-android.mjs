@@ -5,7 +5,7 @@ const android=path.join(root,'android');
 if(!fs.existsSync(android))throw new Error('Pasta Android ausente. Executa npx cap add android.');
 const manifestPath=path.join(android,'app/src/main/AndroidManifest.xml');
 let manifest=fs.readFileSync(manifestPath,'utf8');
-const permissions=['android.permission.RECORD_AUDIO','android.permission.POST_NOTIFICATIONS','android.permission.SCHEDULE_EXACT_ALARM'];
+const permissions=['android.permission.RECORD_AUDIO','android.permission.POST_NOTIFICATIONS','android.permission.SCHEDULE_EXACT_ALARM','android.permission.READ_CALENDAR'];
 for(const p of permissions){
  if(!manifest.includes(`android:name="${p}"`)){
   manifest=manifest.replace(/(<manifest\b[^>]*>)/,`$1\n    <uses-permission android:name="${p}" />`);
@@ -45,6 +45,7 @@ public class MainActivity extends BridgeActivity implements ModifiedMainActivity
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AgendaWidgetPlugin.class);
+        registerPlugin(CalendarDiagnosticPlugin.class);
         super.onCreate(savedInstanceState);
     }
     @Override
