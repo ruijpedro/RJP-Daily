@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.22 — Deslocações rápidas
+# Agenda RJP v1.1.23 — Planeamento semanal e widgets
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -235,3 +235,8 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Iniciar/terminar deslocação com horas automáticas, viatura habitual, contador persistente e resumo de hoje.
 - Diário profissional com atividades de hoje, prevenções e atalhos. Uma viagem rápida não cria avisos ou eventos Google automaticamente; os lembretes continuam opcionais e únicos por registo.
 - Exportações CSV/XLSX/PDF incluem duração de viagens rápidas. Sem mudanças nativas.
+
+## v1.1.23
+- Calendários Google ativos e selecionados (sem limite de 35); cobertura de semanas na mudança de mês. Ler Google requer autorização da conta e app aberta.
+- Vista Semana ISO por defeito, navegação entre semanas e filtro profissional; mantém vista Mês.
+- Widget de 3 dias (2×3) e widget semanal ISO (4×4), com número da semana e linhas por dia. Estas alterações nativas exigem nova APK; OTA 1.1.22 continua disponível até à migração.

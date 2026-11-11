@@ -23,6 +23,7 @@ import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected,
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
 import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
+import {isoWeek,addWeekDays,weekCalendarDays} from './logic/week-planner.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
@@ -77,6 +78,8 @@ function App(){
  const [filter,setFilter]=useState('Todos');
  const [search,setSearch]=useState('');
  const [listDay,setListDay]=useState(()=>startOfDay(new Date()));
+ const [calendarView,setCalendarView]=useState('week');
+ const [weekWorkOnly,setWeekWorkOnly]=useState(false);
  const [listMonth,setListMonth]=useState(()=>new Date().getMonth());
  const [listYear,setListYear]=useState(()=>new Date().getFullYear());
  const [busy,setBusy]=useState(false);
@@ -149,7 +152,7 @@ function App(){
   if(!connected)return;
   let active=true;
   setGoogleCalendarInfo(prev=>({...prev,loading:true,error:''}));
-  void getGoogleSnapshot(new Date(listYear,listMonth,1))
+  void getGoogleSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1))
     .then(snapshot=>{
       if(!active)return;
       setRemoteEvents(snapshot.events);
@@ -161,7 +164,7 @@ function App(){
       setGoogleCalendarInfo(prev=>({...prev,loading:false,error:error.message||'Erro ao consultar o Google Calendar'}));
     });
   return ()=>{active=false};
- },[connected,listYear,listMonth]);
+ },[connected,listYear,listMonth,calendarView,calendarView==='week'?isoWeek(listDay).start:'']);
  useEffect(()=>{saveItems(items);},[items]);
  useEffect(()=>{saveIP(ipData);},[ipData]);
  useEffect(()=>{const timer=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(timer);},[]);
@@ -280,7 +283,7 @@ function App(){
   if(!googleConnected())return;
   setGoogleCalendarInfo(prev=>({...prev,loading:true,error:''}));
   try{
-    const snapshot=await getGoogleSnapshot(new Date(listYear,listMonth,1));
+    const snapshot=await getGoogleSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1));
     setRemoteEvents(snapshot.events);
     setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
     if(!silent)notify('Google Calendar: '+snapshot.events.length+' compromisso(s) em '+snapshot.calendars.length+' calendário(s).');
@@ -352,7 +355,7 @@ function App(){
    const u=await connectGoogle(id);
    phase='calendar';
    // Só apresentar «Ligado» depois de uma chamada real à Google Calendar API.
-   const snapshot=await getGoogleSnapshot(new Date(listYear,listMonth,1));
+   const snapshot=await getGoogleSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1));
    localStorage.setItem('rjp-daily-google-client-id',id);
    setAccount(u.name);setConnected(true);setRemoteEvents(snapshot.events);
    setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
@@ -408,6 +411,7 @@ function App(){
  const widgetActionRef=useRef(null);
  widgetActionRef.current=(action)=>{
    if(action==='alerts'){setModal(null);setTab('avisos');return;}
+   if(action==='week'||action==='three'){setModal(null);setCalendarView('week');setWeekWorkOnly(false);setTab('agenda');const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());return;}
    const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
    if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(connected&&autoGoogleNew)}));}
    else if(action==='voice'){void startVoice();}
@@ -416,7 +420,7 @@ function App(){
    if(Capacitor.getPlatform()!=='android')return;
    let active=true,subscription=null,lastUrl='',lastAt=0;
    const handle=({url}={})=>{
-     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts)$/.test(url||''))return;
+     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts|week|three)$/.test(url||''))return;
      if(url===lastUrl&&Date.now()-lastAt<1500)return;
      lastUrl=url;lastAt=Date.now();
      widgetActionRef.current?.(url.split('/').pop());
@@ -546,6 +550,10 @@ function App(){
  const monthEvents=useMemo(()=>monthCalendarItems(monthGroups),[monthGroups]);
  const monthlyGoogle=monthEvents.filter(x=>x.fromGoogle);
  const dayRows=[...(monthGroups[dateKey(listDay)]||[])].sort((a,b)=>new Date(a.when)-new Date(b.when));
+ const weekly=useMemo(()=>weekCalendarDays(visibleAll,listDay),[visibleAll,listDay]);
+ const movePlanningWeek=n=>{const next=addWeekDays(weekly.start,n*7);const d=new Date(next+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());};
+ const weeklyHasWork=e=>e.fromIP||e.category==='Trabalho'||e.fromGoogle&&/(trabalho|profiss|ip\b)/i.test(e.calendarName||'');
+ const visibleWeekGroups=weekly.days.map(day=>({day,items:weekly.groups[day].filter(e=>!weekWorkOnly||weeklyHasWork(e))}));
  const monthDate=new Date(listYear,listMonth,1);
  const monthFirst=new Date(listYear,listMonth,1).getDay();
  const offset=(monthFirst+6)%7; const daysInMonth=new Date(listYear,listMonth+1,0).getDate();
@@ -582,17 +590,25 @@ function App(){
       <div className="quick-actions"><button onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'tarefa'}))}}><ListTodo size={20}/> Nova tarefa</button><button onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'nota'}))}}><StickyNote size={20}/> Nova nota</button></div>
     </>}
     {tab==='agenda'&&<>
-      <div className="page-intro"><div className="eyebrow">PLANEAMENTO</div><h1>Calendário</h1><p>Os teus compromissos e lembretes num só lugar.</p></div>
+      <div className="page-intro"><div className="eyebrow">PLANEAMENTO SEMANAL</div><h1>Calendário</h1><p>Planeamento por semana ISO, de segunda a domingo. Inclui os calendários Google ativos.</p></div>
+      <div className="week-view-select"><button type="button" className={calendarView==='week'?'active':''} onClick={()=>setCalendarView('week')}>Semana</button><button type="button" className={calendarView==='month'?'active':''} onClick={()=>setCalendarView('month')}>Mês</button></div>
       {connected&&<div className="google-calendar-summary" role="status">
         <Cloud size={18}/>
         <div className="google-calendar-summary-text">
           <strong>{googleCalendarInfo.loading?'A atualizar Google Calendar…':googleCalendarInfo.count+' eventos Google · '+googleCalendarInfo.calendars.length+' calendários'}</strong>
           {googleCalendarInfo.warning&&<small>{googleCalendarInfo.warning}</small>}
           {googleCalendarInfo.error&&<small>Erro de leitura: {googleCalendarInfo.error}</small>}
+          {!!googleCalendarInfo.calendars.length&&<small>Calendários ativos: {googleCalendarInfo.calendars.map(c=>c.summary).join(' · ')}</small>}
         </div>
         <button type="button" aria-label="Atualizar Google Calendar" onClick={()=>refreshGoogle()}><RefreshCw size={17}/></button>
       </div>}
-      <div className="month-card">
+      {calendarView==='week'&&<section className="weekly-planner">
+       <div className="weekly-heading"><button aria-label="Semana anterior" onClick={()=>movePlanningWeek(-1)}><ChevronLeft/></button><div><h2>Semana {weekly.week} · {weekly.year}</h2><small>{new Date(weekly.start+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short'})} – {new Date(weekly.end+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric'})}</small></div><button aria-label="Semana seguinte" onClick={()=>movePlanningWeek(1)}><ChevronRight/></button></div>
+       <div className="weekly-tools"><label><input type="checkbox" checked={weekWorkOnly} onChange={e=>setWeekWorkOnly(e.target.checked)}/> Apenas trabalho</label><button onClick={()=>{const d=new Date();setListDay(d);setListYear(d.getFullYear());setListMonth(d.getMonth());}}>Esta semana</button></div>
+       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className="weekly-event" key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small>{event.fromGoogle?'Google · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
+       <p className="fineprint">O filtro Trabalho inclui os registos IP, as tarefas Trabalho e os calendários Google identificados como profissionais. Desativa-o para veres todos os eventos ativos, independentemente do nome da agenda.</p>
+      </section>}
+      {calendarView==='month'&&<><div className="month-card">
        <div className="month-heading"><button aria-label="Mês anterior" onClick={()=>shiftMonth(-1)}><ChevronLeft/></button><h2>{monthLabel}</h2><button aria-label="Mês seguinte" onClick={()=>shiftMonth(1)}><ChevronRight/></button></div>
        <div className="calendar-grid">{['S','T','Q','Q','S','S','D'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}
         {monthCells.map((day,i)=><button key={i} disabled={!day} className={`day-cell ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(listDay)?'selected':''} ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(clock)?'today':''}`}
@@ -605,11 +621,13 @@ function App(){
           </span>{countDate(day)>0&&<span className="day-count">{countDate(day)}</span>}</>}</button>)}
        </div>
       </div>
-      <div className="guard-calendar-legend"><span><i className="guard-indicator google"/> Google</span><span><i className="guard-indicator bt"/> Prevenção BT</span><span><i className="guard-indicator cc"/> Prevenção CC</span><span><i className="guard-indicator other"/> RJP</span></div>
+      </>}
+      {calendarView==='month'&&<><div className="guard-calendar-legend"><span><i className="guard-indicator google"/> Google</span><span><i className="guard-indicator bt"/> Prevenção BT</span><span><i className="guard-indicator cc"/> Prevenção CC</span><span><i className="guard-indicator other"/> RJP</span></div>
       <div className="section-heading"><h2>{listDay.toLocaleDateString('pt-PT',{day:'numeric',month:'long'})}</h2>{connected&&<button className="text-button" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar</button>}</div>
       {dayRows.length?dayRows.map(i=><Card key={i.id} item={i} onToggle={toggleDone} onEdit={edit} onDelete={remove} onOpenIP={openProfessional} onSyncGoogle={syncOneGoogle}/>):<div className="empty compact">Sem registos neste dia.</div>}
       <button className="outline-full" onClick={()=>{prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(new Date(listDay.getFullYear(),listDay.getMonth(),listDay.getDate(),9,0))}))}}><Plus size={18}/> Adicionar compromisso neste dia</button>
-      <div className="section-heading"><h2>Compromissos de {monthLabel}</h2><span className="counter">{monthEvents.length}</span></div>
+      </>}
+      {calendarView==='month'&&<><div className="section-heading"><h2>Compromissos de {monthLabel}</h2><span className="counter">{monthEvents.length}</span></div>
       {monthlyGoogle.length>0&&<p className="monthly-google-count">Google Calendar: {monthlyGoogle.length} evento(s) neste mês. Os restantes eventos consultados podem ser de meses seguintes.</p>}
       {monthEvents.length?<div className="month-events-list">
         {monthEvents.map(item=><button type="button" className="month-event-row" key={item.id} onClick={()=>{
@@ -620,7 +638,7 @@ function App(){
           <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
           <ChevronRight size={15}/>
         </button>)}
-      </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}
+      </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}</>}
     </>}
     {['deslocacoes','avisos','prevencoes','ip'].includes(tab)&&<IPWorkspace key={tab} initialSection={tab==='deslocacoes'?'trips':tab==='avisos'?'alerts':tab==='prevencoes'?'guards':'resumo'} data={ipData} reminders={items} onAlertAction={actOnProfessionalAlert} setData={setIPData} onPersist={persistProfessional} onDelete={deleteProfessional} voiceIntent={ipVoice} onVoiceConsumed={()=>setIPVoice(null)} onImport={importProfessional} onToast={notify} googleConnected={connected}/>}
     {tab==='tarefas'&&<>
@@ -669,8 +687,8 @@ function App(){
       </div>
       <div className="settings-card">
         <div className="settings-title"><CalendarDays size={21}/><h2>Widgets do ecrã inicial</h2></div>
-        <p>Na APK Android com widgets nativos, podes adicionar «Agenda RJP · Compacto» (2×2) e «Agenda RJP · Completo» (4×3) no ecrã inicial. Mantém premido um espaço vazio no ecrã inicial, escolhe Widgets e procura Agenda RJP.</p>
-        <p className="fineprint">Mostram os últimos compromissos sincronizados, incluindo os do Google Calendar, quando a conta estiver autorizada. Atualizam quando abres a app ou alteras registos; com a app fechada o Android pode atualizar a apresentação periodicamente a partir dos últimos dados guardados.</p>
+        <p>Na APK Android com widgets nativos, podes adicionar «Agenda RJP · Compacto» (2×2) e «Agenda RJP · Completo» (4×3) no ecrã inicial. Adiciona os widgets no ecrã inicial: 3 dias (2×3) e Semana ISO (4×4). Mantém premido um espaço vazio, escolhe Widgets e procura Agenda RJP.</p>
+        <p className="fineprint">Mostram os compromissos dos próximos 3 dias ou da semana ISO, incluindo os calendários Google ativos quando a conta estiver autorizada. Atualizam quando abres a app ou alteras registos; com a app fechada o Android pode atualizar a apresentação periodicamente a partir dos últimos dados guardados.</p>
         <button type="button" className="light-action" onClick={async()=>{const ok=await syncAgendaWidget(visibleAll,connected);notify(ok?'Conteúdo dos widgets atualizado.':'Os widgets exigem a próxima APK nativa; não estão disponíveis nesta instalação.')}}><RefreshCw size={16}/> Atualizar widgets</button>
       </div>
       <div className="settings-card"><div className="settings-title"><Bell size={21}/><h2>Notificações Android</h2></div>
