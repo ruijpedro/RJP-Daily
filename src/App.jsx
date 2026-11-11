@@ -19,7 +19,7 @@ import {
   permissionStatus, requestNotificationPermission, requestExactSetting,
   scheduleItem, cancelItem, onNotificationAction, scheduleDailySummary, stopDailySummary
 } from './services/notifications.js';
-import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleSnapshot, getGoogleEvents, upsertGoogle, deleteGoogleEvent } from './services/google.js';
+import { connectGoogle, restoreGoogleSession, disconnectGoogle, googleConnected, googleProfile, getGoogleSnapshot, getGoogleEvents, upsertGoogle, deleteGoogleEvent, getGoogleAccounts, hasGoogleSessions, primaryGoogleEmail, setPrimaryGoogleAccount, removeGoogleAccount } from './services/google.js';
 import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logic/google-diagnostic.js';
 import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
@@ -93,6 +93,7 @@ function App(){
  const [autoGoogleNew,setAutoGoogleNew]=useState(()=>localStorage.getItem('agenda-rjp-google-auto-new')==='1');
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
+ const [googleAccounts,setGoogleAccounts]=useState(()=>getGoogleAccounts());
  const [remoteEvents,setRemoteEvents]=useState([]);
  const [googleCalendarInfo,setGoogleCalendarInfo]=useState({loading:false,count:0,calendars:[],warning:'',error:''});
  const [permissions,setPermissions]=useState({});
@@ -156,11 +157,13 @@ function App(){
     .then(snapshot=>{
       if(!active)return;
       setRemoteEvents(snapshot.events);
+      setGoogleAccounts(getGoogleAccounts());
       setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
     })
     .catch(error=>{
       if(!active)return;
-      if(!googleConnected()){setConnected(false);setAccount('');setRemoteEvents([]);}
+      setGoogleAccounts(getGoogleAccounts());
+      if(!hasGoogleSessions()){setConnected(false);setAccount('');setRemoteEvents([]);}
       setGoogleCalendarInfo(prev=>({...prev,loading:false,error:error.message||'Erro ao consultar o Google Calendar'}));
     });
   return ()=>{active=false};
@@ -224,11 +227,11 @@ function App(){
  const visibleAll=useMemo(()=>{
   const known = new Set([...items.map(i=>i.googleEventId),...ipData.trips.map(i=>i.googleEventId),...ipData.guards.map(i=>i.googleEventId),...ipData.activities.map(i=>i.googleEventId)].filter(Boolean));
   const professionalIds=new Set(items.map(i=>i.linkedIPId).filter(Boolean));
-  return [...items,...professionalAgenda.filter(e=>!professionalIds.has(e.linkedId)),...remoteEvents.filter(e=>!known.has(e.googleEventId))];
+  return [...items,...professionalAgenda.filter(e=>!professionalIds.has(e.linkedId)),...remoteEvents.filter(e=>!known.has(e.googleEventId) || e.sourceAccount!==primaryGoogleEmail() || (e.calendarId!=='primary'&&e.calendarId!==primaryGoogleEmail()))];
  },[items,remoteEvents,professionalAgenda,ipData]);
  // Reflete no launcher apenas títulos/horas, sem descrições, tokens ou NIF.
  // Na APK antiga o plugin ainda não existe: o serviço ignora silenciosamente.
- useEffect(()=>{void syncAgendaWidget(visibleAll,connected);},[visibleAll,connected]);
+ useEffect(()=>{void syncAgendaWidget(visibleAll,connected&&googleAccounts.every(x=>x.connected));},[visibleAll,connected,googleAccounts]);
  const todays=useMemo(()=>visibleAll.filter(i=>i.when && dateKey(i.when)===dateKey(clock)&&!i.done),[visibleAll,clock]);
  const pending=useMemo(()=>items.filter(i=>i.kind==='tarefa'&&!i.done&&i.when&&new Date(i.when)<clock),[items,clock]);
  const upcoming=useMemo(()=>visibleAll.filter(i=>!i.done&&i.when&&new Date(i.when)>=clock).sort((a,b)=>new Date(a.when)-new Date(b.when)),[visibleAll,clock]);
@@ -280,17 +283,19 @@ function App(){
   await cancelItem(item);setItems(prev=>prev.filter(x=>x.id!==item.id));notify('Registo eliminado.');
  }
  async function refreshGoogle(silent=false){
-  if(!googleConnected())return;
+  if(!hasGoogleSessions())return;
   setGoogleCalendarInfo(prev=>({...prev,loading:true,error:''}));
   try{
     const snapshot=await getGoogleSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1));
     setRemoteEvents(snapshot.events);
+    setGoogleAccounts(getGoogleAccounts());
     setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
     if(!silent)notify('Google Calendar: '+snapshot.events.length+' compromisso(s) em '+snapshot.calendars.length+' calendário(s).');
   }catch(e){
     setGoogleCalendarInfo(prev=>({...prev,loading:false,error:e.message||'Falha ao ler a agenda'}));
     if(!silent)notify('Não foi possível atualizar os eventos Google. Consulta Definições.');
-    setConnected(googleConnected());
+    setGoogleAccounts(getGoogleAccounts());
+    setConnected(hasGoogleSessions());
   }
  }
  // Exportação sempre iniciada pelo utilizador. Não partilhar notas ou
@@ -352,23 +357,50 @@ function App(){
   let phase='login';
   try{
    const id=clientId.trim();
+   const before=getGoogleAccounts().filter(x=>x.connected).map(x=>x.email);
    const u=await connectGoogle(id);
    phase='calendar';
-   // Só apresentar «Ligado» depois de uma chamada real à Google Calendar API.
+   // Uma nova conta não substitui a principal sem escolha explícita.
    const snapshot=await getGoogleSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1));
    localStorage.setItem('rjp-daily-google-client-id',id);
-   setAccount(u.name);setConnected(true);setRemoteEvents(snapshot.events);
+   setGoogleAccounts(getGoogleAccounts());
+   setAccount(primaryGoogleEmail()||'');
+   setConnected(hasGoogleSessions());setRemoteEvents(snapshot.events);
    setGoogleCalendarInfo({loading:false,count:snapshot.events.length,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
-   notify('Google Calendar ligado: '+snapshot.events.length+' compromisso(s) encontrados.');
+   notify(before.includes(u.email)?'Conta '+u.email+' novamente autorizada. Para acrescentar outra, escolhe-a no seletor Google.':'Conta '+u.email+' adicionada à agenda semanal.');
   }catch(e){
    const diagnostic=describeGoogleLoginFailure(e,phase);
    setGoogleError(diagnostic);
-   setConnected(false);setAccount('');setRemoteEvents([]);
-   notify('Falha ao ligar o Google Calendar. Vê a explicação em Definições.');
-  }
-  finally{setBusy(false)}
+   setGoogleAccounts(getGoogleAccounts());
+   setConnected(hasGoogleSessions());
+   if(!hasGoogleSessions()){setAccount('');setRemoteEvents([]);}
+   notify('Ligação Google não concluída. Os calendários já ligados foram mantidos.');
+  }finally{setBusy(false)}
  }
- async function googleDisconnect(){await disconnectGoogle();await clearAgendaWidgetGoogle();setConnected(false);setAccount('');setRemoteEvents([]);notify('Conta Google desligada.');}
+ function chooseGooglePrimary(email){
+  try{
+   setPrimaryGoogleAccount(email);
+   setAccount(email);setGoogleAccounts(getGoogleAccounts());
+   notify('Conta principal para enviar compromissos: '+email);
+  }catch(e){notify(e.message);}
+ }
+ async function forgetGoogleAccount(email){
+  const last=hasGoogleSessions()&&getGoogleAccounts().filter(x=>x.connected).length===1;
+  removeGoogleAccount(email);
+  setGoogleAccounts(getGoogleAccounts());setAccount(primaryGoogleEmail()||'');
+  setRemoteEvents(prev=>prev.filter(x=>x.sourceAccount!==email));
+  setConnected(hasGoogleSessions());
+  // Limpa os dados antigos do widget, inclusive desta conta.
+  await clearAgendaWidgetGoogle();
+  if(!last&&hasGoogleSessions())await refreshGoogle(true);
+  notify('Conta '+email+' retirada da Agenda RJP. Eventos remotos preservados no Google.');
+ }
+ async function googleDisconnect(){
+  await disconnectGoogle();
+  await clearAgendaWidgetGoogle();
+  setConnected(false);setAccount('');setRemoteEvents([]);setGoogleAccounts([]);
+  notify('Todas as contas Google desligadas da Agenda RJP.');
+ }
  async function startVoice(){
   if(listening)return;
   speechRef.current='';setSpeechText('');setListening(true);setModal('voice');
@@ -595,17 +627,17 @@ function App(){
       {connected&&<div className="google-calendar-summary" role="status">
         <Cloud size={18}/>
         <div className="google-calendar-summary-text">
-          <strong>{googleCalendarInfo.loading?'A atualizar Google Calendar…':googleCalendarInfo.count+' eventos Google · '+googleCalendarInfo.calendars.length+' calendários'}</strong>
+          <strong>{googleCalendarInfo.loading?'A atualizar Google Calendar…':googleCalendarInfo.count+' eventos Google · '+googleCalendarInfo.calendars.length+' calendários · '+googleAccounts.filter(x=>x.connected).length+' conta(s)'}</strong>
           {googleCalendarInfo.warning&&<small>{googleCalendarInfo.warning}</small>}
           {googleCalendarInfo.error&&<small>Erro de leitura: {googleCalendarInfo.error}</small>}
-          {!!googleCalendarInfo.calendars.length&&<small>Calendários ativos: {googleCalendarInfo.calendars.map(c=>c.summary).join(' · ')}</small>}
+          {!!googleCalendarInfo.calendars.length&&<small>Calendários ativos: {googleCalendarInfo.calendars.map(c=>(c.accountEmail?c.accountEmail+' / ':'')+c.summary).join(' · ')}</small>}
         </div>
         <button type="button" aria-label="Atualizar Google Calendar" onClick={()=>refreshGoogle()}><RefreshCw size={17}/></button>
       </div>}
       {calendarView==='week'&&<section className="weekly-planner">
        <div className="weekly-heading"><button aria-label="Semana anterior" onClick={()=>movePlanningWeek(-1)}><ChevronLeft/></button><div><h2>Semana {weekly.week} · {weekly.year}</h2><small>{new Date(weekly.start+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short'})} – {new Date(weekly.end+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric'})}</small></div><button aria-label="Semana seguinte" onClick={()=>movePlanningWeek(1)}><ChevronRight/></button></div>
        <div className="weekly-tools"><label><input type="checkbox" checked={weekWorkOnly} onChange={e=>setWeekWorkOnly(e.target.checked)}/> Apenas trabalho</label><button onClick={()=>{const d=new Date();setListDay(d);setListYear(d.getFullYear());setListMonth(d.getMonth());}}>Esta semana</button></div>
-       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className="weekly-event" key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small>{event.fromGoogle?'Google · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
+       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className="weekly-event" key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small>{event.fromGoogle?'Google · '+(event.sourceAccount||'')+' · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
        <p className="fineprint">O filtro Trabalho inclui os registos IP, as tarefas Trabalho e os calendários Google identificados como profissionais. Desativa-o para veres todos os eventos ativos, independentemente do nome da agenda.</p>
       </section>}
       {calendarView==='month'&&<><div className="month-card">
@@ -635,7 +667,7 @@ function App(){
           if(key)setListDay(new Date(key+'T12:00:00'));
         }}>
           <span className="month-event-date">{item.when?dateFmt(item.when,{month:'short'}):'—'}{!item.allDay&&item.when?' · '+timeFmt(item.when):''}</span>
-          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
+          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.sourceAccount||'')+' · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
           <ChevronRight size={15}/>
         </button>)}
       </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}</>}
@@ -659,25 +691,31 @@ function App(){
     </>}
     {tab==='definicoes'&&<>
       <div className="page-intro"><div className="eyebrow">PERSONALIZAÇÃO</div><h1>Definições</h1><p>Notificações, Google Calendar e segurança dos dados.</p></div>
-      <div className="settings-card"><div className="settings-title"><Cloud size={21}/><h2>Google Calendar</h2>{connected&&<span className="connected-pill">Ligado</span>}</div>
-       <p>Mostra eventos do teu calendário e permite adicionar compromissos após confirmação. A ligação exige credenciais OAuth do teu próprio projeto Google Cloud.</p>
-       {connected?<><div className="account">{account}</div>
+      <div className="settings-card"><div className="settings-title"><Cloud size={21}/><h2>Google Calendar</h2>{connected&&<span className="connected-pill">{googleAccounts.filter(x=>x.connected).length} conta(s)</span>}</div>
+       <p>Lê em conjunto os calendários selecionados de várias contas Google, com autorização individual. Só a conta marcada como principal recebe eventos criados na Agenda RJP.</p>
+       {googleAccounts.length>0&&<div className="google-account-list">{googleAccounts.map(ga=><div className="google-account-row" key={ga.email}>
+        <div className="google-account-info"><strong>{ga.email}</strong><small>{ga.primary?'Principal · ':''}{ga.connected?'Autorizada nesta sessão':'Requer nova autorização'}</small></div>
+        <div className="google-account-actions">{ga.connected&&!ga.primary&&<button type="button" onClick={()=>chooseGooglePrimary(ga.email)}>Tornar principal</button>}
+         <button type="button" onClick={()=>void forgetGoogleAccount(ga.email)}>Retirar</button></div>
+       </div>)}</div>}
+       <p className="fineprint">As contas ficam identificadas no telemóvel, mas não guardamos tokens Google no armazenamento da app. Ao reabrir ou após expiração, pode ser necessário autorizar novamente cada conta. Seleciona a mesma conta no ecrã Google para a reativar.</p>
+       {connected?<><div className="account">Conta principal: {account||'Por definir — escolhe uma conta autorizada'}</div>
         <p className="fineprint">Os eventos criados na Agenda RJP não são enviados por defeito sem a tua escolha. O destino é o calendário principal da conta acima.</p>
         <div className="setting-line"><span>Tarefas/compromissos por enviar</span><strong>{googlePending.length}</strong></div>
-        <button type="button" className="primary-action stretch" disabled={busy||googlePending.length===0} onClick={syncPendingGoogle}><Cloud size={16}/> Enviar {googlePending.length} compromisso(s) para o Google</button>
+        <button type="button" className="primary-action stretch" disabled={busy||googlePending.length===0||!googleConnected()} onClick={syncPendingGoogle}><Cloud size={16}/> Enviar {googlePending.length} compromisso(s) para o Google</button>
         <label className="toggle-line"><span><strong>Enviar automaticamente novos compromissos</strong><small>Quando a conta está ligada, pré-seleciona «Adicionar ao Google Calendar» nas novas tarefas e reuniões. Podes desmarcar antes de guardar. Não inclui notas ou módulos IP.</small></span>
           <input type="checkbox" checked={autoGoogleNew} onChange={e=>{const yes=e.target.checked;setAutoGoogleNew(yes);localStorage.setItem('agenda-rjp-google-auto-new',yes?'1':'0')}}/></label>
         {googleWriteStatus&&<p role="status" className="fineprint"><strong>Envio Google:</strong> {googleWriteStatus}</p>}
         <div className="setting-line"><span>Eventos lidos</span><strong>{googleCalendarInfo.loading?'A atualizar…':googleCalendarInfo.count}</strong></div>
         <div className="setting-line"><span>Calendários encontrados</span><strong>{googleCalendarInfo.calendars.length}</strong></div>
-        {googleCalendarInfo.calendars.length>0&&<p className="fineprint">Calendários: {googleCalendarInfo.calendars.map(x=>x.summary||'Sem nome').join(' · ')}</p>}
+        {googleCalendarInfo.calendars.length>0&&<p className="fineprint">Calendários: {googleCalendarInfo.calendars.map(x=>(x.accountEmail?x.accountEmail+' / ':'')+(x.summary||'Sem nome')).join(' · ')}</p>}
         {googleCalendarInfo.warning&&<p role="status" className="fineprint">{googleCalendarInfo.warning}</p>}
         {googleCalendarInfo.error&&<p role="alert" className="fineprint">Erro ao consultar os calendários: {googleCalendarInfo.error}</p>}
-        <div className="settings-row"><button className="primary-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar</button></div></>:<>
+        <div className="settings-row"><button className="primary-action" disabled={busy} onClick={googleConnect}><Plus size={16}/> Adicionar outra conta</button><button className="light-action" onClick={()=>refreshGoogle()}><RefreshCw size={16}/> Atualizar agenda</button><button onClick={googleDisconnect} className="light-action">Desligar todas</button></div></>:<>
         <label className="field-label" htmlFor="google-client">Client ID Web (Google OAuth)</label>
         <input id="google-client" className="text-field" placeholder="…apps.googleusercontent.com" value={clientId} onChange={e=>{setClientId(e.target.value);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',e.target.value)}}/>
         <button type="button" className="light-action" onClick={()=>{setClientId(DEFAULT_GOOGLE_WEB_CLIENT_ID);setGoogleError('');localStorage.setItem('rjp-daily-google-client-id',DEFAULT_GOOGLE_WEB_CLIENT_ID)}}>Usar Client ID Agenda RJP</button>
-        <button onClick={googleConnect} disabled={busy||!clientId.trim()} className="primary-action stretch"><Cloud size={17}/> {busy?'A ligar…':'Ligar conta Google'}</button>
+        <button onClick={googleConnect} disabled={busy||!clientId.trim()} className="primary-action stretch"><Cloud size={17}/> {busy?'A ligar…':'Ligar / adicionar conta Google'}</button>
         {googleError&&<div role="alert" className="fineprint"><strong>Diagnóstico de ligação:</strong> {googleError}<p>Confirma a SHA-1 da APK instalada, o pacote pt.rjp.daily e os utilizadores de teste do Google Cloud. Se não resolver, envia uma imagem desta mensagem (sem tokens ou Client Secret).</p></div>}
         <p className="fineprint">Configuração única: no Google Cloud, ativa a Calendar API e cria clientes OAuth Web e Android. Usa o <b>Client ID Web</b> aqui na app. No cliente Android, indica <b>pt.rjp.daily</b> e a impressão digital SHA-1 da APK instalada.</p>
         <p className="fineprint">Na versão de testes v1.1.5 que disponibilizámos, a SHA-1 é <code>13:11:9C:DD:39:F6:BB:7C:DD:D3:93:32:33:74:89:76:44:B9:5C:E5</code>. Se instalaste outra APK, a assinatura pode ser diferente.</p>

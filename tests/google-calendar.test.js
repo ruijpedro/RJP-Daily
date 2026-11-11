@@ -52,3 +52,11 @@ test('Eventos de dia inteiro dos calendários secundários mantêm data local',(
  assert.equal(event.when,'2026-11-09');
  assert.equal(event.allDay,true);
 });
+
+test('IDs Google diferem entre duas contas mesmo no calendário primário',()=>{
+ const event={id:'abc',summary:'Reunião',start:{dateTime:'2026-11-11T10:00:00Z'}};
+ const [a]=normalizeGoogleEvents([event],{id:'primary',summary:'Agenda',accountEmail:'a@example.com'});
+ const [b]=normalizeGoogleEvents([event],{id:'primary',summary:'Agenda',accountEmail:'b@example.com'});
+ assert.notEqual(a.id,b.id);assert.equal(a.sourceAccount,'a@example.com');
+ assert.equal(b.sourceAccount,'b@example.com');
+});

@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.24 — Planeamento semanal por OTA
+# Agenda RJP v1.1.25 — Várias contas Google (OTA)
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -244,3 +244,9 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 ## v1.1.24
 - Distribui por OTA a vista por semanas ISO e leitura alargada dos calendários Google ativos nas APK 1.1.14, 1.1.18 e 1.1.23.
 - A versão nativa 1.1.23 continua necessária apenas para mostrar os novos layouts de widgets 3/7 dias; em APKs antigas os widgets conservam a apresentação anterior.
+
+## v1.1.25
+- Múltiplas contas Google no mesmo planeamento semanal; cada conta precisa de autorização individual na app.
+- Seleção explícita da conta Google principal para exportar compromissos, sem mudar destino automaticamente.
+- Tokens de acesso mantidos apenas em memória, email de contas guardado localmente; nova autorização poderá ser necessária ao reiniciar a app.
+- Conta profissional Google Workspace pode exigir aprovação do administrador.
