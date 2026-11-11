@@ -24,6 +24,7 @@ import { DEFAULT_GOOGLE_WEB_CLIENT_ID, describeGoogleLoginFailure } from './logi
 import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 import {isoWeek,addWeekDays,weekCalendarDays} from './logic/week-planner.js';
+import {CALENDAR_ROLES,calendarPresentation,calendarChoices,loadCalendarColors,saveCalendarColors,prioritySort} from './logic/calendar-colors.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
@@ -80,6 +81,8 @@ function App(){
  const [listDay,setListDay]=useState(()=>startOfDay(new Date()));
  const [calendarView,setCalendarView]=useState('week');
  const [weekWorkOnly,setWeekWorkOnly]=useState(false);
+ const [plannerFocus,setPlannerFocus]=useState('todos');
+ const [calendarColors,setCalendarColors]=useState(loadCalendarColors);
  const [listMonth,setListMonth]=useState(()=>new Date().getMonth());
  const [listYear,setListYear]=useState(()=>new Date().getFullYear());
  const [busy,setBusy]=useState(false);
@@ -169,6 +172,7 @@ function App(){
   return ()=>{active=false};
  },[connected,listYear,listMonth,calendarView,calendarView==='week'?isoWeek(listDay).start:'']);
  useEffect(()=>{saveItems(items);},[items]);
+ useEffect(()=>{saveCalendarColors(calendarColors);},[calendarColors]);
  useEffect(()=>{saveIP(ipData);},[ipData]);
  useEffect(()=>{const timer=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),6000);return()=>clearTimeout(t);},[toast]);
@@ -584,8 +588,13 @@ function App(){
  const dayRows=[...(monthGroups[dateKey(listDay)]||[])].sort((a,b)=>new Date(a.when)-new Date(b.when));
  const weekly=useMemo(()=>weekCalendarDays(visibleAll,listDay),[visibleAll,listDay]);
  const movePlanningWeek=n=>{const next=addWeekDays(weekly.start,n*7);const d=new Date(next+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());};
- const weeklyHasWork=e=>e.fromIP||e.category==='Trabalho'||e.fromGoogle&&/(trabalho|profiss|ip\b)/i.test(e.calendarName||'');
- const visibleWeekGroups=weekly.days.map(day=>({day,items:weekly.groups[day].filter(e=>!weekWorkOnly||weeklyHasWork(e))}));
+ const visibleWeekGroups=weekly.days.map(day=>({day,items:weekly.groups[day].filter(e=>{
+   const role=calendarPresentation(e,calendarColors).role;
+   return (plannerFocus==='todos'||role===plannerFocus)&&(!weekWorkOnly||role==='profissional');
+ }).sort((a,b)=>prioritySort(a,b,calendarColors))}));
+ const calendarPaletteList=calendarChoices(googleCalendarInfo.calendars);
+ const setCalendarRole=(key,role)=>setCalendarColors(p=>({...p,[key]:{role}}));
+ const setCalendarColor=(key,color)=>setCalendarColors(p=>({...p,[key]:{...p[key],color}}));
  const monthDate=new Date(listYear,listMonth,1);
  const monthFirst=new Date(listYear,listMonth,1).getDay();
  const offset=(monthFirst+6)%7; const daysInMonth=new Date(listYear,listMonth+1,0).getDate();
@@ -636,9 +645,9 @@ function App(){
       </div>}
       {calendarView==='week'&&<section className="weekly-planner">
        <div className="weekly-heading"><button aria-label="Semana anterior" onClick={()=>movePlanningWeek(-1)}><ChevronLeft/></button><div><h2>Semana {weekly.week} · {weekly.year}</h2><small>{new Date(weekly.start+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short'})} – {new Date(weekly.end+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric'})}</small></div><button aria-label="Semana seguinte" onClick={()=>movePlanningWeek(1)}><ChevronRight/></button></div>
-       <div className="weekly-tools"><label><input type="checkbox" checked={weekWorkOnly} onChange={e=>setWeekWorkOnly(e.target.checked)}/> Apenas trabalho</label><button onClick={()=>{const d=new Date();setListDay(d);setListYear(d.getFullYear());setListMonth(d.getMonth());}}>Esta semana</button></div>
-       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className="weekly-event" key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small>{event.fromGoogle?'Google · '+(event.sourceAccount||'')+' · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
-       <p className="fineprint">O filtro Trabalho inclui os registos IP, as tarefas Trabalho e os calendários Google identificados como profissionais. Desativa-o para veres todos os eventos ativos, independentemente do nome da agenda.</p>
+       <div className="weekly-tools"><div className="planner-priority" role="group" aria-label="Tipo de calendário">{[['todos','Todos'],['profissional','Profissional'],['academico','Académico'],['pessoal','Pessoal']].map(([role,title])=><button key={role} className={plannerFocus===role?'active':''} aria-pressed={plannerFocus===role} type="button" onClick={()=>{setPlannerFocus(role);setWeekWorkOnly(false)}}>{title}</button>)}</div><button onClick={()=>{const d=new Date();setListDay(d);setListYear(d.getFullYear());setListMonth(d.getMonth());}}>Esta semana</button></div>
+       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className={'weekly-event priority-'+calendarPresentation(event,calendarColors).role} style={{borderLeftColor:calendarPresentation(event,calendarColors).color}} key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small><span className="calendar-color-dot" style={{backgroundColor:calendarPresentation(event,calendarColors).color}}/> {calendarPresentation(event,calendarColors).label} · {event.fromGoogle?'Google · '+(event.sourceAccount||'')+' · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
+       <p className="fineprint">Ordem: Profissional → Académico → Pessoal. As cores são configuráveis em Definições → Cores dos calendários.</p>
       </section>}
       {calendarView==='month'&&<><div className="month-card">
        <div className="month-heading"><button aria-label="Mês anterior" onClick={()=>shiftMonth(-1)}><ChevronLeft/></button><h2>{monthLabel}</h2><button aria-label="Mês seguinte" onClick={()=>shiftMonth(1)}><ChevronRight/></button></div>
@@ -662,7 +671,7 @@ function App(){
       {calendarView==='month'&&<><div className="section-heading"><h2>Compromissos de {monthLabel}</h2><span className="counter">{monthEvents.length}</span></div>
       {monthlyGoogle.length>0&&<p className="monthly-google-count">Google Calendar: {monthlyGoogle.length} evento(s) neste mês. Os restantes eventos consultados podem ser de meses seguintes.</p>}
       {monthEvents.length?<div className="month-events-list">
-        {monthEvents.map(item=><button type="button" className="month-event-row" key={item.id} onClick={()=>{
+        {monthEvents.map(item=><button type="button" className="month-event-row" style={{borderLeft:'4px solid '+calendarPresentation(item,calendarColors).color}} key={item.id} onClick={()=>{
           const key=dateKey(item.when);
           if(key)setListDay(new Date(key+'T12:00:00'));
         }}>
@@ -691,6 +700,15 @@ function App(){
     </>}
     {tab==='definicoes'&&<>
       <div className="page-intro"><div className="eyebrow">PERSONALIZAÇÃO</div><h1>Definições</h1><p>Notificações, Google Calendar e segurança dos dados.</p></div>
+      <div className="settings-card"><div className="settings-title"><CalendarDays size={21}/><h2>Cores dos calendários</h2></div>
+       <p>O planeamento dá destaque primeiro ao profissional, depois ao académico e por fim aos pessoais. Podes alterar a categoria e a cor de cada calendário.</p>
+       {calendarPaletteList.map(entry=>{
+        const palette=calendarPresentation(entry,calendarColors);
+        return <div className="calendar-role-row" key={entry.id}><div className="calendar-role-name"><span className="calendar-color-dot" style={{backgroundColor:palette.color}}/><strong>{entry.label}</strong></div>
+         <div className="calendar-role-controls"><select aria-label={'Prioridade de '+entry.label} value={palette.role} onChange={e=>setCalendarRole(entry.id,e.target.value)}>{Object.entries(CALENDAR_ROLES).map(([key,role])=><option key={key} value={key}>{role.label}</option>)}</select>
+          <input type="color" aria-label={'Cor de '+entry.label} value={palette.color} onChange={e=>setCalendarColor(entry.id,e.target.value)}/></div></div>;
+       })}
+      </div>
       <div className="settings-card"><div className="settings-title"><Cloud size={21}/><h2>Google Calendar</h2>{connected&&<span className="connected-pill">{googleAccounts.filter(x=>x.connected).length} conta(s)</span>}</div>
        <p>Lê em conjunto os calendários selecionados de várias contas Google, com autorização individual. Só a conta marcada como principal recebe eventos criados na Agenda RJP.</p>
        {googleAccounts.length>0&&<div className="google-account-list">{googleAccounts.map(ga=><div className="google-account-row" key={ga.email}>

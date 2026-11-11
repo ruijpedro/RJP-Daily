@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.25 — Várias contas Google (OTA)
+# Agenda RJP v1.1.26 — Calendários com cores e prioridade (OTA)
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -250,3 +250,8 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Seleção explícita da conta Google principal para exportar compromissos, sem mudar destino automaticamente.
 - Tokens de acesso mantidos apenas em memória, email de contas guardado localmente; nova autorização poderá ser necessária ao reiniciar a app.
 - Conta profissional Google Workspace pode exigir aprovação do administrador.
+
+## v1.1.26
+- Personalização de cores e classificação de cada calendário Google (profissional, académico, pessoal e outros).
+- Planeamento semanal ordena e destaca profissional, depois académico e pessoal; filtros por área.
+- A conta Outlook corporativa IP exige autorização Microsoft Entra da organização; não enviar credenciais corporativas à app sem aprovação.
