@@ -11,15 +11,36 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.PermissionState;
+import com.getcapacitor.annotation.PermissionCallback;
 
 /** Read-only, local diagnostics: never queries event contents or sends data to a server. */
-@CapacitorPlugin(name = "CalendarDiagnostic")
+@CapacitorPlugin(name = "CalendarDiagnostic", permissions = { @Permission(alias = "calendar", strings = { Manifest.permission.READ_CALENDAR }) })
 public class CalendarDiagnosticPlugin extends Plugin {
     @PluginMethod
     public void status(PluginCall call) {
         JSObject result = new JSObject();
         result.put("granted", ContextCompat.checkSelfPermission(getContext(),
             Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestCalendarAccess(PluginCall call) {
+        if (getPermissionState("calendar") == PermissionState.GRANTED) {
+            JSObject result = new JSObject();
+            result.put("granted", true);
+            call.resolve(result);
+            return;
+        }
+        requestPermissionForAlias("calendar", call, "calendarPermissionCallback");
+    }
+
+    @PermissionCallback
+    private void calendarPermissionCallback(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", getPermissionState("calendar") == PermissionState.GRANTED);
         call.resolve(result);
     }
 
