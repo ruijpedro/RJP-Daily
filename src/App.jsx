@@ -28,7 +28,7 @@ import {CALENDAR_ROLES,calendarPresentation,calendarChoices,loadCalendarColors,s
 import {compareVersions} from './logic/ota-release.js';
 import {readMicrosoftConfig,saveMicrosoftConfig,beginMicrosoftSignIn,completeMicrosoftSignIn,isMicrosoftCallback,microsoftSignOut,microsoftIdentity,microsoftSignedIn,getMicrosoftSnapshot} from './services/microsoft-365.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
-import {calendarProviderStatus,listDeviceCalendars} from './services/calendar-provider.js';
+import {calendarProviderStatus,requestDeviceCalendarAccess,listDeviceCalendars} from './services/calendar-provider.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
@@ -803,8 +803,11 @@ function App(){
             const status=await calendarProviderStatus();
             if(!status.supported){setDeviceCalendarState({loading:false,message:'Disponível apenas na APK Android.',calendars:[]});return;}
             if(!status.granted){
-              setDeviceCalendarState({loading:false,message:'Permissão de calendário não concedida. Para testar, abre Definições Android → Aplicações → Agenda RJP → Permissões → Calendário e permite apenas se autorizado pela organização.',calendars:[]});
-              return;
+              const permission=await requestDeviceCalendarAccess();
+              if(!permission.granted){
+                setDeviceCalendarState({loading:false,message:'Permissão de leitura não concedida. Não foram consultados calendários. Se estiver bloqueada pela organização, não tentes contornar a restrição.',calendars:[]});
+                return;
+              }
             }
             const calendars=await listDeviceCalendars();
             setDeviceCalendarState({loading:false,message:calendars.length?'Calendários encontrados: '+calendars.length:'O Android não disponibiliza calendários a esta aplicação.',calendars});
