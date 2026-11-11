@@ -45,22 +45,23 @@ function createDraft(source=''){return source ? {...emptyDraft(),...parsePtComma
 function Card({item,onToggle,onEdit,onDelete,onOpenIP,onSyncGoogle}){
  const fromGoogle=Boolean(item.fromGoogle);
  const fromIP=Boolean(item.fromIP);
- const overdue=item.when && !item.done && new Date(item.when)<new Date() && !fromGoogle;
+ const fromMicrosoft=Boolean(item.fromMicrosoft);
+ const overdue=item.when && !item.done && new Date(item.when)<new Date() && !fromGoogle && !fromMicrosoft;
  const I=item.kind==='nota'?FileText:item.kind==='evento'?CalendarDays:CheckCircle2;
  return <div className={`item-card ${item.done?'is-done':''}`}>
    <span className={`item-kind ${item.kind}`}><I size={18}/></span>
    <div className="item-info">
-    <div className="item-heading"><span className="item-title">{item.title}</span>{fromGoogle&&<span className="google-tag">Google</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}{!fromGoogle&&Boolean(item.googleEventId)&&<span className="google-tag">Enviado ao Google</span>}</div>
+    <div className="item-heading"><span className="item-title">{item.title}</span>{fromGoogle&&<span className="google-tag">Google</span>}{fromMicrosoft&&<span className="google-tag">Outlook IP · Só leitura</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}{!fromGoogle&&Boolean(item.googleEventId)&&<span className="google-tag">Enviado ao Google</span>}</div>
     {item.details&&<div className="item-details">{item.details}</div>}
     <div className="item-meta">
       <span>{item.category||'Agenda'}</span>
       {item.when&&<><span className="dot"/><span className={overdue?'overdue':''}>{relativeDay(item.when)}{!item.allDay&&` · ${timeFmt(item.when)}`}</span></>}
       {item.done&&<span className="done-tag">Concluído</span>}
-      {item.when && !item.done && !item.fromGoogle && !item.fromIP && <Bell size={12}/>}
+      {item.when && !item.done && !item.fromGoogle && !item.fromIP && !item.fromMicrosoft && <Bell size={12}/>}
     </div>
    </div>
    {fromIP&&<button className="mini-btn" title="Abrir módulo IP" onClick={onOpenIP}><ChevronRight size={17}/></button>}
-   {!fromGoogle&&!fromIP&&<div className="item-actions">
+   {!fromGoogle&&!fromIP&&!fromMicrosoft&&<div className="item-actions">
      {item.kind!=='nota'&&<button aria-label={item.done?'Reabrir tarefa':'Concluir tarefa'} title={item.done?'Reabrir':'Concluir'} onClick={()=>onToggle(item)} className="mini-btn">{item.done?<RotateCcw size={17}/>:<Check size={18}/>}</button>}
      {item.when&&!item.googleEventId&&!item.done&&<button aria-label="Enviar ao Google Calendar" title="Enviar ao Google Calendar" onClick={()=>onSyncGoogle(item)} className="mini-btn"><Cloud size={16}/></button>}
      <button aria-label="Editar" title="Editar" onClick={()=>onEdit(item)} className="mini-btn"><Edit3 size={16}/></button>
