@@ -25,6 +25,7 @@ import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 import {isoWeek,addWeekDays,weekCalendarDays} from './logic/week-planner.js';
 import {CALENDAR_ROLES,calendarPresentation,calendarChoices,loadCalendarColors,saveCalendarColors,prioritySort} from './logic/calendar-colors.js';
+import {compareVersions} from './logic/ota-release.js';
 import {readMicrosoftConfig,saveMicrosoftConfig,beginMicrosoftSignIn,completeMicrosoftSignIn,isMicrosoftCallback,microsoftSignOut,microsoftIdentity,microsoftSignedIn,getMicrosoftSnapshot} from './services/microsoft-365.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
@@ -117,6 +118,7 @@ function App(){
  const [clock,setClock]=useState(()=>new Date());
  const [otaStatus,setOtaStatus]=useState({type:'idle',message:'Verificação automática ao abrir a app.'});
  const [nativeVersion,setNativeVersion]=useState(null);
+ const canMicrosoftLogin=Boolean(nativeVersion && /^\d+\.\d+\.\d+$/.test(nativeVersion) && compareVersions(nativeVersion,'1.1.27')>=0);
  useEffect(()=>{void otaNativeVersion().then(setNativeVersion)},[]);
  const lastOtaNotice=useRef('');
 
@@ -803,8 +805,8 @@ function App(){
          <label className="field-label" htmlFor="microsoft-tenant">Directory (tenant) ID da IP</label>
          <input id="microsoft-tenant" className="text-field" value={microsoftConfig.tenantId} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" onChange={e=>{const next={...microsoftConfig,tenantId:e.target.value};setMicrosoftConfig(next);saveMicrosoftConfig(next)}}/>
          <p className="fineprint">Necessária aplicação aprovada no Microsoft Entra da IP, configurada como cliente móvel público com redirecionamento <code>agenda-rjp://oauth/microsoft</code> e permissões delegadas <code>User.Read</code> e <code>Calendars.ReadBasic</code>. O consentimento pode ter de ser dado pelos serviços de informática.</p>
-         <button type="button" className="primary-action stretch" disabled={nativeVersion!=='1.1.27'} onClick={async()=>{try{setMicrosoftError('');await beginMicrosoftSignIn(microsoftConfig)}catch(e){setMicrosoftError(e.message)}}}><Cloud size={16}/> Autorizar Outlook IP</button>
-         {nativeVersion!=='1.1.27'&&<p className="fineprint">O login Microsoft através do navegador do sistema requer a APK 1.1.27. As cores dos calendários continuam disponíveis por OTA nas APK anteriores.</p>}
+         <button type="button" className="primary-action stretch" disabled={!canMicrosoftLogin} onClick={async()=>{try{setMicrosoftError('');await beginMicrosoftSignIn(microsoftConfig)}catch(e){setMicrosoftError(e.message)}}}><Cloud size={16}/> Autorizar Outlook IP</button>
+         {!canMicrosoftLogin&&<p className="fineprint">O login Microsoft através do navegador do sistema requer a APK 1.1.27. As cores dos calendários continuam disponíveis por OTA nas APK anteriores.</p>}
         </>}
         {microsoftCalendarInfo.error&&<p className="fineprint" role="alert">{microsoftCalendarInfo.error}</p>}
         {microsoftError&&<p className="fineprint" role="alert">{microsoftError}</p>}
