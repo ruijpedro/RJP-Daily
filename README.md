@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.23 — Planeamento semanal e widgets
+# Agenda RJP v1.1.24 — Planeamento semanal por OTA
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -240,3 +240,7 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Calendários Google ativos e selecionados (sem limite de 35); cobertura de semanas na mudança de mês. Ler Google requer autorização da conta e app aberta.
 - Vista Semana ISO por defeito, navegação entre semanas e filtro profissional; mantém vista Mês.
 - Widget de 3 dias (2×3) e widget semanal ISO (4×4), com número da semana e linhas por dia. Estas alterações nativas exigem nova APK; OTA 1.1.22 continua disponível até à migração.
+
+## v1.1.24
+- Distribui por OTA a vista por semanas ISO e leitura alargada dos calendários Google ativos nas APK 1.1.14, 1.1.18 e 1.1.23.
+- A versão nativa 1.1.23 continua necessária apenas para mostrar os novos layouts de widgets 3/7 dias; em APKs antigas os widgets conservam a apresentação anterior.
