@@ -40,3 +40,8 @@ test('widget conserva dias anteriores da mesma semana ISO para planeamento',()=>
  const list=agendaWidgetEvents([{title:'Planeamento',when:'2026-11-09T09:00:00Z',kind:'evento'}],new Date('2026-11-11T08:00:00Z'));
  assert.equal(list[0]?.title,'Planeamento');
 });
+
+test('evento Google que atravessa dias aparece em cada dia da semana',()=>{
+ const list=agendaWidgetEvents([{title:'Obra',when:'2026-11-10',end:'2026-11-13',allDay:true,fromGoogle:true}],now);
+ assert.deepEqual(list.map(x=>x.date),['2026-11-10','2026-11-11','2026-11-12']);
+});

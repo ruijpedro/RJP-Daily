@@ -1,4 +1,4 @@
-import {calendarDayKey} from './calendar-view.js';
+import {calendarDayKey,calendarItemDays} from './calendar-view.js';
 import {isoWeek} from './week-planner.js';
 
 const timeFormatter=new Intl.DateTimeFormat('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit',hour12:false});
@@ -12,16 +12,19 @@ export function agendaWidgetEvents(items,now=new Date()){
   const seen=new Set();
   return (Array.isArray(items)?items:[])
     .filter(i=>i?.when && !i.done && i.kind!=='nota')
-    .map(i=>{
-      const date=calendarDayKey(i.when);
-      const allDay=Boolean(i.allDay || typeof i.when==='string'&&DATE.test(i.when));
-      const stamp=allDay?Date.parse(date+'T12:00:00Z'):new Date(i.when).getTime();
-      if(!date||!Number.isFinite(stamp))return null;
-      return {date,allDay,timestamp:stamp,
-        title:String(i.title||'Compromisso').trim().slice(0,140),
-        time:allDay?'':timeFormatter.format(new Date(stamp)),
-        source:i.fromGoogle?'Google':i.fromIP?'IP':'RJP',
-        type:i.fromGoogle?'Google':i.fromIP?(i.linkedType==='guards'?(/\bCC\b/i.test(i.title||'')?'CC':'BT'):i.linkedType==='trips'?'Deslocação':'IP'):i.kind==='tarefa'?'Tarefa':'RJP'};
+    .flatMap(i=>{
+      const dates=calendarItemDays(i);
+      const fullDay=Boolean(i.allDay || typeof i.when==='string'&&DATE.test(i.when));
+      return dates.map((date,index)=>{
+        const allDay=fullDay || index>0;
+        const stamp=allDay?Date.parse(date+'T12:00:00Z'):new Date(i.when).getTime();
+        if(!date||!Number.isFinite(stamp))return null;
+        return {date,allDay,timestamp:stamp,
+          title:String(i.title||'Compromisso').trim().slice(0,140),
+          time:allDay?'':timeFormatter.format(new Date(stamp)),
+          source:i.fromGoogle?'Google':i.fromIP?'IP':'RJP',
+          type:i.fromGoogle?'Google':i.fromIP?(i.linkedType==='guards'?(/\bCC\b/i.test(i.title||'')?'CC':'BT'):i.linkedType==='trips'?'Deslocação':'IP'):i.kind==='tarefa'?'Tarefa':'RJP'};
+      });
     })
     .filter(x=>x&&x.date>=today && x.date<=endDay && Number.isFinite(x.timestamp))
     .filter(x=>{
