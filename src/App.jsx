@@ -29,7 +29,6 @@ import {compareVersions} from './logic/ota-release.js';
 import {readMicrosoftConfig,saveMicrosoftConfig,beginMicrosoftSignIn,completeMicrosoftSignIn,isMicrosoftCallback,microsoftSignOut,microsoftIdentity,microsoftSignedIn,getMicrosoftSnapshot} from './services/microsoft-365.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 import {calendarProviderStatus,listDeviceCalendars} from './services/calendar-provider.js';
-import {Capacitor as CalendarCapacitor} from '@capacitor/core';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
