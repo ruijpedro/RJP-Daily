@@ -28,6 +28,7 @@ import {CALENDAR_ROLES,calendarPresentation,calendarChoices,loadCalendarColors,s
 import {compareVersions} from './logic/ota-release.js';
 import {readMicrosoftConfig,saveMicrosoftConfig,beginMicrosoftSignIn,completeMicrosoftSignIn,isMicrosoftCallback,microsoftSignOut,microsoftIdentity,microsoftSignedIn,getMicrosoftSnapshot} from './services/microsoft-365.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
+import {calendarProviderStatus,requestDeviceCalendarAccess,listDeviceCalendars} from './services/calendar-provider.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
 const categories=['Trabalho','Pessoal','Família','Outros'];
@@ -107,6 +108,7 @@ function App(){
  const [microsoftEvents,setMicrosoftEvents]=useState([]);
  const [microsoftCalendarInfo,setMicrosoftCalendarInfo]=useState({loading:false,calendars:[],warning:'',error:''});
  const [microsoftError,setMicrosoftError]=useState('');
+ const [deviceCalendarState,setDeviceCalendarState]=useState({loading:false,message:'',calendars:[]});
  const [permissions,setPermissions]=useState({});
  const [dailySummary,setDailySummary]=useState(()=>localStorage.getItem('rjp-daily-summary')==='1');
  const fileInput=useRef(null);
@@ -791,6 +793,29 @@ function App(){
         <p className="fineprint">Para a WebApp publicada em GitHub Pages, autoriza a origem JavaScript <code>https://ruijpedro.github.io</code>. Se usares outro domínio, adiciona essa origem.</p>
         <p className="fineprint"><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Abrir clientes OAuth Google Cloud</a> · <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Ativar Google Calendar API</a> · <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Adicionar conta de teste</a></p>
        </>}
+      </div>
+      <div className="settings-card">
+        <div className="settings-title"><CalendarDays size={21}/><h2>Diagnóstico de calendários Android</h2></div>
+        <p>Verifica se o Android disponibiliza o calendário profissional ao sistema. O diagnóstico consulta apenas nomes e tipos de calendários, sem ler eventos. Não altera contas nem sincronização.</p>
+        <button type="button" className="light-action" disabled={deviceCalendarState.loading} onClick={async()=>{
+          setDeviceCalendarState({loading:true,message:'',calendars:[]});
+          try {
+            const status=await calendarProviderStatus();
+            if(!status.supported){setDeviceCalendarState({loading:false,message:'Disponível apenas na APK Android.',calendars:[]});return;}
+            if(!status.granted){
+              const permission=await requestDeviceCalendarAccess();
+              if(!permission.granted){
+                setDeviceCalendarState({loading:false,message:'Permissão de leitura não concedida. Não foram consultados calendários. Se estiver bloqueada pela organização, não tentes contornar a restrição.',calendars:[]});
+                return;
+              }
+            }
+            const calendars=await listDeviceCalendars();
+            setDeviceCalendarState({loading:false,message:calendars.length?'Calendários encontrados: '+calendars.length:'O Android não disponibiliza calendários a esta aplicação.',calendars});
+          }catch(e){setDeviceCalendarState({loading:false,message:'Diagnóstico indisponível: '+String(e.message||e),calendars:[]});}
+        }}><Search size={16}/> Verificar calendários do dispositivo</button>
+        {deviceCalendarState.message&&<p className="fineprint" role="status">{deviceCalendarState.message}</p>}
+        {deviceCalendarState.calendars.map(c=><div className="setting-line" key={c.id}><span>{c.name||'Calendário sem nome'} · {c.accountType||'Tipo desconhecido'}</span><strong>{c.visible?'Visível':'Oculto'}</strong></div>)}
+        <p className="fineprint">A conta IP pode estar bloqueada pela política da organização. Este diagnóstico não contorna restrições e não envia dados para a Google ou Microsoft.</p>
       </div>
       <div className="settings-card"><div className="settings-title"><BriefcaseBusiness size={21}/><h2>Outlook corporativo IP · Microsoft 365</h2></div>
         <p>Ligação apenas de leitura, diretamente ao Microsoft Graph e com autorização Microsoft Entra. A conta corporativa é distinta das contas Google. Não são pedidos passwords, acesso ao email, nem permissões para editar eventos.</p>
