@@ -1,32 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="14dp"
-    android:background="@drawable/widget_agenda_background">
-    <TextView android:id="@+id/widget_title"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="AGENDA RJP" android:textColor="#6EE0C9"
-        android:textStyle="bold" android:textSize="13sp" />
-    <TextView android:id="@+id/widget_subtitle"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="5dp" android:text="Hoje · agenda"
-        android:textColor="#CCDCE6" android:textSize="11sp" android:maxLines="2"/>
-    <TextView android:id="@+id/widget_next"
-        android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:gravity="center_vertical"
-        android:text="Próximo compromisso" android:textColor="#FFFFFF"
-        android:textStyle="bold" android:textSize="15sp" android:maxLines="3"/>
-    <TextView android:id="@+id/widget_meta"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="Abrir agenda" android:textColor="#8FD8CE"
-        android:maxLines="2" android:ellipsize="end" android:textSize="11sp"/>
-    <TextView android:id="@+id/widget_ip_alerts"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="AVISOS IP  ›" android:contentDescription="Abrir notificações profissionais"
-        android:paddingTop="5dp" android:paddingBottom="3dp"
-        android:gravity="center" android:textStyle="bold"
-        android:textColor="#FFD187" android:textSize="11sp"/>
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="10dp" android:background="@drawable/widget_agenda_background">
+    <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="AGENDA · 3 DIAS" android:textColor="#6EE0C9" android:textStyle="bold" android:textSize="12sp"/>
+    <TextView android:id="@+id/widget_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="3dp" android:layout_marginBottom="4dp"
+        android:text="SEMANA 46" android:textColor="#CCDCE6" android:textSize="10sp" android:maxLines="1"/>
+    <TextView android:id="@+id/widget_day_1" style="@style/AgendaWidgetRow"/>
+    <TextView android:id="@+id/widget_day_2" style="@style/AgendaWidgetRow"/>
+    <TextView android:id="@+id/widget_day_3" style="@style/AgendaWidgetRow"/>
+    <TextView android:id="@+id/widget_ip_alerts" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="AVISOS IP ›" android:contentDescription="Abrir notificações profissionais"
+        android:gravity="center" android:paddingTop="4dp" android:textStyle="bold" android:textColor="#FFD187" android:textSize="10sp"/>
 </LinearLayout>

@@ -1,12 +1,13 @@
 import {calendarDayKey} from './calendar-view.js';
+import {isoWeek} from './week-planner.js';
 
 const timeFormatter=new Intl.DateTimeFormat('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit',hour12:false});
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 
 /** Dados mínimos, sem notas, credenciais ou identificadores de contas Google. */
 export function agendaWidgetEvents(items,now=new Date()){
-  const today=calendarDayKey(now);
-  const max=new Date(now.getTime()+21*86400000);
+  const today=isoWeek(now).start;
+  const max=new Date(now.getTime()+28*86400000);
   const endDay=calendarDayKey(max);
   const seen=new Set();
   return (Array.isArray(items)?items:[])
@@ -29,5 +30,5 @@ export function agendaWidgetEvents(items,now=new Date()){
       seen.add(key);return true;
     })
     .sort((a,b)=>a.timestamp-b.timestamp)
-    .slice(0,50);
+    .slice(0,200);
 }

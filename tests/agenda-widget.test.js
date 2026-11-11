@@ -35,3 +35,8 @@ test('widget distingue BT, CC, deslocações e tarefas',()=>{
  const x=agendaWidgetEvents([{title:'Prevenção BT',when:'2026-11-09',fromIP:true,linkedType:'guards'},{title:'Prevenção CC',when:'2026-11-10',fromIP:true,linkedType:'guards'},{title:'Deslocação',when:'2026-11-11',fromIP:true,linkedType:'trips'},{title:'Telefonar',when:'2026-11-12',kind:'tarefa'}],now);
  assert.deepEqual(x.map(e=>e.type),['BT','CC','Deslocação','Tarefa']);
 });
+
+test('widget conserva dias anteriores da mesma semana ISO para planeamento',()=>{
+ const list=agendaWidgetEvents([{title:'Planeamento',when:'2026-11-09T09:00:00Z',kind:'evento'}],new Date('2026-11-11T08:00:00Z'));
+ assert.equal(list[0]?.title,'Planeamento');
+});

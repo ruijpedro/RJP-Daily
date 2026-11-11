@@ -128,8 +128,8 @@ export async function deleteGoogleEvent(id){
  * O âmbito calendar.calendarlist.readonly autoriza apenas a listagem de agendas.
  * Se ainda não foi autorizado, recua para o primário e indica a limitação. */
 export async function getGoogleSnapshot(from=new Date()){
-  const begin=new Date(from.getFullYear(),from.getMonth(),1).toISOString();
-  const end=new Date(from.getFullYear(),from.getMonth()+2,1).toISOString();
+  const begin=new Date(from.getFullYear(),from.getMonth()-1,1).toISOString();
+  const end=new Date(from.getFullYear(),from.getMonth()+3,1).toISOString();
   let calendars=[];
   let listWarning='';
   try{
@@ -158,7 +158,7 @@ export async function getGoogleSnapshot(from=new Date()){
   // Colocar o calendário principal primeiro. A consulta por "primary" garante
   // que o identificador funciona mesmo quando o Google fornece o email como ID.
   calendars.sort((a,b)=>Number(Boolean(b.primary))-Number(Boolean(a.primary)));
-  const selected=calendars.slice(0,35);
+  const selected=calendars; // Calendários ativos e selecionados pelo utilizador no Google.
   const fetchOne=async calendar=>{
     const all=[];let pageToken;
     do{
@@ -172,12 +172,15 @@ export async function getGoogleSnapshot(from=new Date()){
     return normalizeGoogleEvents(all,calendar);
   };
   // Evitar falha global quando uma agenda partilhada foi revogada.
-  const settled=await Promise.allSettled(selected.map(fetchOne));
+  const settled=[];
+  for(let i=0;i<selected.length;i+=6){
+    settled.push(...await Promise.allSettled(selected.slice(i,i+6).map(fetchOne)));
+  }
   const failures=settled.filter(x=>x.status==='rejected');
   const events=settled.flatMap(x=>x.status==='fulfilled'?x.value:[]);
   if(failures.length===settled.length)throw failures[0].reason;
   const warning=[listWarning,failures.length?`${failures.length} agenda(s) não puderam ser consultadas.`:'',
-    calendars.length>selected.length?'A mostrar as primeiras 35 agendas.':''].filter(Boolean).join(' ');
+    calendars.length>=1000?'A listagem atingiu 1000 agendas; confirma no Google Calendar.':''].filter(Boolean).join(' ');
   return {events,calendars:selected.map(x=>({...x,summary:safeCalendarName(x.summary)})),warning};
 }
 /** Compatibilidade com chamadas anteriores. */
