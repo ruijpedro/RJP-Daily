@@ -25,6 +25,7 @@ import {googleExportCandidates} from './logic/google-sync.js';
 import {calendarDayKey,groupCalendarMonth,monthCalendarItems} from './logic/calendar-view.js';
 import {isoWeek,addWeekDays,weekCalendarDays} from './logic/week-planner.js';
 import {CALENDAR_ROLES,calendarPresentation,calendarChoices,loadCalendarColors,saveCalendarColors,prioritySort} from './logic/calendar-colors.js';
+import {readMicrosoftConfig,saveMicrosoftConfig,beginMicrosoftSignIn,completeMicrosoftSignIn,isMicrosoftCallback,microsoftSignOut,microsoftIdentity,microsoftSignedIn,getMicrosoftSnapshot} from './services/microsoft-365.js';
 import {syncAgendaWidget,clearAgendaWidgetGoogle} from './services/agenda-widget.js';
 import {professionalAlerts,summarizeProfessionalAlerts,changeProfessionalAlert} from './logic/professional-alerts.js';
 
@@ -99,6 +100,11 @@ function App(){
  const [googleAccounts,setGoogleAccounts]=useState(()=>getGoogleAccounts());
  const [remoteEvents,setRemoteEvents]=useState([]);
  const [googleCalendarInfo,setGoogleCalendarInfo]=useState({loading:false,count:0,calendars:[],warning:'',error:''});
+ const [microsoftConfig,setMicrosoftConfig]=useState(readMicrosoftConfig);
+ const [microsoftAccount,setMicrosoftAccount]=useState(microsoftIdentity);
+ const [microsoftEvents,setMicrosoftEvents]=useState([]);
+ const [microsoftCalendarInfo,setMicrosoftCalendarInfo]=useState({loading:false,calendars:[],warning:'',error:''});
+ const [microsoftError,setMicrosoftError]=useState('');
  const [permissions,setPermissions]=useState({});
  const [dailySummary,setDailySummary]=useState(()=>localStorage.getItem('rjp-daily-summary')==='1');
  const fileInput=useRef(null);
@@ -151,6 +157,29 @@ function App(){
   })();
   return ()=>{active=false};
  },[]);
+ // Receber o código OAuth Microsoft apenas do deep-link registado na APK.
+ useEffect(()=>{
+  if(!Capacitor.isNativePlatform())return;
+  let alive=true,subscription=null;
+  const handle=async ({url}={})=>{
+   if(!alive||!isMicrosoftCallback(url))return;
+   try{
+    const account=await completeMicrosoftSignIn(url);
+    if(!alive||!account)return;
+    setMicrosoftAccount(account);setMicrosoftError('');
+    const snapshot=await getMicrosoftSnapshot(new Date());
+    if(!alive)return;
+    setMicrosoftEvents(snapshot.events);
+    setMicrosoftCalendarInfo({loading:false,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
+    notify('Calendário Outlook profissional ligado em modo de leitura.');
+   }catch(e){
+    if(alive)setMicrosoftError(e.message||'Não foi possível autorizar o Outlook da IP.');
+   }
+  };
+  void CapacitorApp.addListener('appUrlOpen',handle).then(x=>{if(alive)subscription=x;else void x.remove()}).catch(()=>{});
+  void CapacitorApp.getLaunchUrl().then(v=>{if(v?.url)void handle(v)}).catch(()=>{});
+  return ()=>{alive=false;void subscription?.remove()};
+ },[]);
  // Atualizar calendários do mês e expor contagens/erros na agenda.
  useEffect(()=>{
   if(!connected)return;
@@ -171,6 +200,23 @@ function App(){
     });
   return ()=>{active=false};
  },[connected,listYear,listMonth,calendarView,calendarView==='week'?isoWeek(listDay).start:'']);
+ // Atualização de Outlook limitada a leitura e apenas enquanto a sessão autorizada está aberta.
+ useEffect(()=>{
+  if(!microsoftAccount||!microsoftSignedIn())return;
+  let active=true;
+  setMicrosoftCalendarInfo(prev=>({...prev,loading:true,error:''}));
+  void getMicrosoftSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1))
+   .then(snapshot=>{
+    if(!active)return;
+    setMicrosoftEvents(snapshot.events);
+    setMicrosoftCalendarInfo({loading:false,calendars:snapshot.calendars,warning:snapshot.warning,error:''});
+   }).catch(e=>{
+    if(!active)return;
+    setMicrosoftCalendarInfo(prev=>({...prev,loading:false,error:e.message}));
+    if(!microsoftSignedIn()){setMicrosoftAccount(null);setMicrosoftEvents([]);}
+   });
+  return ()=>{active=false};
+ },[microsoftAccount?.email,listYear,listMonth,calendarView,calendarView==='week'?isoWeek(listDay).start:'']);
  useEffect(()=>{saveItems(items);},[items]);
  useEffect(()=>{saveCalendarColors(calendarColors);},[calendarColors]);
  useEffect(()=>{saveIP(ipData);},[ipData]);
@@ -231,11 +277,13 @@ function App(){
  const visibleAll=useMemo(()=>{
   const known = new Set([...items.map(i=>i.googleEventId),...ipData.trips.map(i=>i.googleEventId),...ipData.guards.map(i=>i.googleEventId),...ipData.activities.map(i=>i.googleEventId)].filter(Boolean));
   const professionalIds=new Set(items.map(i=>i.linkedIPId).filter(Boolean));
-  return [...items,...professionalAgenda.filter(e=>!professionalIds.has(e.linkedId)),...remoteEvents.filter(e=>!known.has(e.googleEventId) || e.sourceAccount!==primaryGoogleEmail() || (e.calendarId!=='primary'&&e.calendarId!==primaryGoogleEmail()))];
- },[items,remoteEvents,professionalAgenda,ipData]);
+  return [...items,...professionalAgenda.filter(e=>!professionalIds.has(e.linkedId)),...remoteEvents.filter(e=>!known.has(e.googleEventId) || e.sourceAccount!==primaryGoogleEmail() || (e.calendarId!=='primary'&&e.calendarId!==primaryGoogleEmail())),...microsoftEvents];
+ },[items,remoteEvents,microsoftEvents,professionalAgenda,ipData]);
  // Reflete no launcher apenas títulos/horas, sem descrições, tokens ou NIF.
  // Na APK antiga o plugin ainda não existe: o serviço ignora silenciosamente.
- useEffect(()=>{void syncAgendaWidget(visibleAll,connected&&googleAccounts.every(x=>x.connected));},[visibleAll,connected,googleAccounts]);
+ // Política de privacidade IP: eventos Microsoft corporativos nunca entram na cache
+ // do widget do launcher, backups ou notificações locais.
+ useEffect(()=>{void syncAgendaWidget(visibleAll.filter(e=>!e.fromMicrosoft),connected&&googleAccounts.every(x=>x.connected));},[visibleAll,connected,googleAccounts]);
  const todays=useMemo(()=>visibleAll.filter(i=>i.when && dateKey(i.when)===dateKey(clock)&&!i.done),[visibleAll,clock]);
  const pending=useMemo(()=>items.filter(i=>i.kind==='tarefa'&&!i.done&&i.when&&new Date(i.when)<clock),[items,clock]);
  const upcoming=useMemo(()=>visibleAll.filter(i=>!i.done&&i.when&&new Date(i.when)>=clock).sort((a,b)=>new Date(a.when)-new Date(b.when)),[visibleAll,clock]);
@@ -592,7 +640,7 @@ function App(){
    const role=calendarPresentation(e,calendarColors).role;
    return (plannerFocus==='todos'||role===plannerFocus)&&(!weekWorkOnly||role==='profissional');
  }).sort((a,b)=>prioritySort(a,b,calendarColors))}));
- const calendarPaletteList=calendarChoices(googleCalendarInfo.calendars);
+ const calendarPaletteList=calendarChoices(googleCalendarInfo.calendars,microsoftCalendarInfo.calendars);
  const setCalendarRole=(key,role)=>setCalendarColors(p=>({...p,[key]:{role}}));
  const setCalendarColor=(key,color)=>setCalendarColors(p=>({...p,[key]:{...p[key],color}}));
  const monthDate=new Date(listYear,listMonth,1);
@@ -646,7 +694,7 @@ function App(){
       {calendarView==='week'&&<section className="weekly-planner">
        <div className="weekly-heading"><button aria-label="Semana anterior" onClick={()=>movePlanningWeek(-1)}><ChevronLeft/></button><div><h2>Semana {weekly.week} · {weekly.year}</h2><small>{new Date(weekly.start+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short'})} – {new Date(weekly.end+'T12:00:00').toLocaleDateString('pt-PT',{day:'numeric',month:'short',year:'numeric'})}</small></div><button aria-label="Semana seguinte" onClick={()=>movePlanningWeek(1)}><ChevronRight/></button></div>
        <div className="weekly-tools"><div className="planner-priority" role="group" aria-label="Tipo de calendário">{[['todos','Todos'],['profissional','Profissional'],['academico','Académico'],['pessoal','Pessoal']].map(([role,title])=><button key={role} className={plannerFocus===role?'active':''} aria-pressed={plannerFocus===role} type="button" onClick={()=>{setPlannerFocus(role);setWeekWorkOnly(false)}}>{title}</button>)}</div><button onClick={()=>{const d=new Date();setListDay(d);setListYear(d.getFullYear());setListMonth(d.getMonth());}}>Esta semana</button></div>
-       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className={'weekly-event priority-'+calendarPresentation(event,calendarColors).role} style={{borderLeftColor:calendarPresentation(event,calendarColors).color}} key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small><span className="calendar-color-dot" style={{backgroundColor:calendarPresentation(event,calendarColors).color}}/> {calendarPresentation(event,calendarColors).label} · {event.fromGoogle?'Google · '+(event.sourceAccount||'')+' · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
+       {visibleWeekGroups.map(({day,items:events})=><div className="weekly-day" key={day}><div className={'weekly-date '+(day===dateKey(clock)?'today':'')}><b>{new Date(day+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit'})}</b><small>{events.length} registo(s)</small></div><div className="weekly-events">{events.length?events.map(event=><button type="button" className={'weekly-event priority-'+calendarPresentation(event,calendarColors).role} style={{borderLeftColor:calendarPresentation(event,calendarColors).color}} key={event.id} onClick={()=>{const d=new Date(day+'T12:00:00');setListDay(d);setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');}}><span>{event.allDay?'Dia inteiro':timeFmt(event.when)}</span><strong>{event.title}</strong><small><span className="calendar-color-dot" style={{backgroundColor:calendarPresentation(event,calendarColors).color}}/> {calendarPresentation(event,calendarColors).label} · {event.fromMicrosoft?'Outlook IP · '+event.calendarName:event.fromGoogle?'Google · '+(event.sourceAccount||'')+' · '+event.calendarName:event.fromIP?'IP':event.category||'RJP'}</small></button>):<span className="weekly-none">Sem compromissos</span>}</div></div>)}
        <p className="fineprint">Ordem: Profissional → Académico → Pessoal. As cores são configuráveis em Definições → Cores dos calendários.</p>
       </section>}
       {calendarView==='month'&&<><div className="month-card">
@@ -676,7 +724,7 @@ function App(){
           if(key)setListDay(new Date(key+'T12:00:00'));
         }}>
           <span className="month-event-date">{item.when?dateFmt(item.when,{month:'short'}):'—'}{!item.allDay&&item.when?' · '+timeFmt(item.when):''}</span>
-          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromGoogle?'Google · '+(item.sourceAccount||'')+' · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
+          <span className="month-event-body"><strong>{item.title}</strong><small>{item.fromMicrosoft?'Outlook IP · '+item.calendarName:item.fromGoogle?'Google · '+(item.sourceAccount||'')+' · '+(item.calendarName||'Calendário'):item.fromIP?'Gestão profissional IP' :'Agenda RJP'}</small></span>
           <ChevronRight size={15}/>
         </button>)}
       </div>:<div className="empty compact">Não existem compromissos visíveis neste mês. Experimenta mudar de mês.</div>}</>}
@@ -740,6 +788,26 @@ function App(){
         <p className="fineprint">Para a WebApp publicada em GitHub Pages, autoriza a origem JavaScript <code>https://ruijpedro.github.io</code>. Se usares outro domínio, adiciona essa origem.</p>
         <p className="fineprint"><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Abrir clientes OAuth Google Cloud</a> · <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Ativar Google Calendar API</a> · <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Adicionar conta de teste</a></p>
        </>}
+      </div>
+      <div className="settings-card"><div className="settings-title"><BriefcaseBusiness size={21}/><h2>Outlook corporativo IP · Microsoft 365</h2></div>
+        <p>Ligação apenas de leitura, diretamente ao Microsoft Graph e com autorização Microsoft Entra. A conta corporativa é distinta das contas Google. Não são pedidos passwords, acesso ao email, nem permissões para editar eventos.</p>
+        {microsoftAccount?<><div className="account">{microsoftAccount.email} · Ligada nesta sessão</div>
+         <div className="setting-line"><span>Calendários Outlook</span><strong>{microsoftCalendarInfo.calendars.length}</strong></div>
+         {microsoftCalendarInfo.warning&&<p className="fineprint">{microsoftCalendarInfo.warning}</p>}
+         <div className="settings-row"><button type="button" className="light-action" onClick={async()=>{try{const v=await getMicrosoftSnapshot(calendarView==='week'?listDay:new Date(listYear,listMonth,1));setMicrosoftEvents(v.events);setMicrosoftCalendarInfo({loading:false,calendars:v.calendars,warning:v.warning,error:''});notify('Calendários Outlook atualizados.')}catch(e){setMicrosoftError(e.message)}}}><RefreshCw size={16}/> Atualizar Outlook</button>
+         <button type="button" className="light-action" onClick={()=>{microsoftSignOut();setMicrosoftAccount(null);setMicrosoftEvents([]);setMicrosoftCalendarInfo({loading:false,calendars:[],warning:'',error:''});notify('Conta Microsoft 365 desligada sem apagar eventos remotos.')}}>Desligar</button></div>
+        </>:<>
+         <label className="field-label" htmlFor="microsoft-client">Application (client) ID aprovado pela IP</label>
+         <input id="microsoft-client" className="text-field" value={microsoftConfig.clientId} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" onChange={e=>{const next={...microsoftConfig,clientId:e.target.value};setMicrosoftConfig(next);saveMicrosoftConfig(next)}}/>
+         <label className="field-label" htmlFor="microsoft-tenant">Directory (tenant) ID da IP</label>
+         <input id="microsoft-tenant" className="text-field" value={microsoftConfig.tenantId} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" onChange={e=>{const next={...microsoftConfig,tenantId:e.target.value};setMicrosoftConfig(next);saveMicrosoftConfig(next)}}/>
+         <p className="fineprint">Necessária aplicação aprovada no Microsoft Entra da IP, configurada como cliente móvel público com redirecionamento <code>agenda-rjp://oauth/microsoft</code> e permissões delegadas <code>User.Read</code> e <code>Calendars.ReadBasic</code>. O consentimento pode ter de ser dado pelos serviços de informática.</p>
+         <button type="button" className="primary-action stretch" disabled={nativeVersion!=='1.1.27'} onClick={async()=>{try{setMicrosoftError('');await beginMicrosoftSignIn(microsoftConfig)}catch(e){setMicrosoftError(e.message)}}}><Cloud size={16}/> Autorizar Outlook IP</button>
+         {nativeVersion!=='1.1.27'&&<p className="fineprint">O login Microsoft através do navegador do sistema requer a APK 1.1.27. As cores dos calendários continuam disponíveis por OTA nas APK anteriores.</p>}
+        </>}
+        {microsoftCalendarInfo.error&&<p className="fineprint" role="alert">{microsoftCalendarInfo.error}</p>}
+        {microsoftError&&<p className="fineprint" role="alert">{microsoftError}</p>}
+        <p className="fineprint">Por proteção dos dados profissionais, os títulos Outlook só existem na sessão atual: não entram no backup JSON, nas notificações, nem na cache dos widgets Android. A ligação depende das políticas de segurança da IP.</p>
       </div>
       <div className="settings-card">
         <div className="settings-title"><CalendarDays size={21}/><h2>Widgets do ecrã inicial</h2></div>

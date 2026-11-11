@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.26 — Calendários com cores e prioridade (OTA)
+# Agenda RJP v1.1.27 — Integração Microsoft 365 IP (APK)
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -255,3 +255,9 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Personalização de cores e classificação de cada calendário Google (profissional, académico, pessoal e outros).
 - Planeamento semanal ordena e destaca profissional, depois académico e pessoal; filtros por área.
 - A conta Outlook corporativa IP exige autorização Microsoft Entra da organização; não enviar credenciais corporativas à app sem aprovação.
+
+## v1.1.27 — Outlook corporativo IP
+- Liga Microsoft 365 Outlook em modo de leitura, apenas depois de registo/aprovação de aplicação Microsoft Entra pela IP; requer Client ID, Tenant ID e consentimento da organização.
+- Autenticação Authorization Code + PKCE via browser do sistema e callback nativo agenda-rjp://oauth/microsoft; não guardar tokens/refresh tokens.
+- Eventos Microsoft Graph Calendars.ReadBasic lidos em memória e classificados Profissionais (verde). Sem acesso a email, sem gravação de eventos no Outlook, sem exportação de conteúdo corporativo para widgets/backups.
+- Cores e prioridades profissionais/académicas já disponíveis na OTA v1.1.26 em APKs anteriores.

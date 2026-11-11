@@ -11,6 +11,12 @@ for(const p of permissions){
   manifest=manifest.replace(/(<manifest\b[^>]*>)/,`$1\n    <uses-permission android:name="${p}" />`);
  }
 }
+// Outlook corporativo: apenas devolver o resultado PKCE do navegador do sistema.
+if(!manifest.includes('android:host="oauth"')){
+ const redirectFilter='\n            <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="agenda-rjp" android:host="oauth" android:pathPrefix="/microsoft" />\n            </intent-filter>\n';
+ if(!manifest.includes('</activity>'))throw new Error('Atividade Android necessária ao redirecionamento Microsoft não encontrada.');
+ manifest=manifest.replace('</activity>',redirectFilter+'        </activity>');
+}
 fs.writeFileSync(manifestPath,manifest);
 const stringsFile=path.join(android,'app/src/main/res/values/strings.xml');
 let strings=fs.readFileSync(stringsFile,'utf8');
