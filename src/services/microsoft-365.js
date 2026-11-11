@@ -84,7 +84,9 @@ async function nativeRequest(options){
 }
 async function graphGet(url,token=accessToken){
  if(!token)throw new Error('A conta Microsoft 365 IP precisa de nova autorização.');
- return nativeRequest({url,method:'GET',headers:{
+ const target=new URL(url);
+ if(target.protocol!=='https:'||target.hostname!=='graph.microsoft.com')throw new Error('Endereço Microsoft Graph inválido.');
+ return nativeRequest({url:target.toString(),method:'GET',headers:{
   Authorization:'Bearer '+token,Accept:'application/json',Prefer:'outlook.timezone="UTC"'
  }});
 }
