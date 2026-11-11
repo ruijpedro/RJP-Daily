@@ -11,8 +11,9 @@ export function googleEventPayload(item){
 /** Um calendário secundário pode conter IDs de eventos iguais ao principal. */
 export function normalizeGoogleEvents(events,calendar={}){
   return (Array.isArray(events)?events:[]).filter(e=>e?.status!=='cancelled' && e?.id).map(e=>({
-    id:'google:'+encodeURIComponent(calendar.id||'primary')+':'+e.id,
+    id:'google:'+encodeURIComponent(calendar.accountEmail||'')+':'+encodeURIComponent(calendar.id||'primary')+':'+e.id,
     googleEventId:e.id,calendarId:calendar.id||'primary',calendarName:safeCalendarName(calendar.summary),
+    sourceAccount:calendar.accountEmail||'',
     kind:'evento',title:e.summary||'(Sem título)',
     details:e.description||'',when:e.start?.dateTime||e.start?.date||'',
     end:e.end?.dateTime||e.end?.date||'',
