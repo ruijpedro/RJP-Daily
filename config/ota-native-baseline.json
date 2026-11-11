@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.23",
+  "nativeVersion": "1.1.27",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -11,7 +11,8 @@
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "@capgo/capacitor-updater": "^8.0.0",
-    "@capacitor/cli": "^8.0.0"
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/browser": "^8.0.0"
   },
   "capacitorConfig": {
     "appId": "pt.rjp.daily",
@@ -42,14 +43,14 @@
       }
     }
   },
-  "patchAndroidGitBlobSha": "a424821e62099e36bfd8ec9451c67d9347145b70",
+  "patchAndroidGitBlobSha": "20021be5d59ac9881189f62e10439adaca29c05d",
   "allowedCosmeticPatchBlobShas": [],
   "nativeWidgetTreeSha": "7462b7681ed0799ab015fbb9e084276f5f160bac",
   "compatibleMinNativeVersion": "1.1.14",
   "compatibilityAudit": {
     "from": "1.1.14",
-    "through": "1.1.23",
-    "reason": "Auditoria de árvores nativas 1.1.14→1.1.18→1.1.23: apenas representação/altura/descrições dos widgets Android. AgendaWidgetPlugin, MainActivity, assinatura, permissões, dependências e configuração Capacitor são compatíveis. APK 1.1.23 necessária para os novos widgets de 3/7 dias; bundles Web futuros continuam compatíveis com bases anteriores.",
+    "through": "1.1.27",
+    "reason": "O bundle Web só invoca o plugin nativo Browser em Android com APK >=1.1.27. Em bases anteriores, a ligação Microsoft está desativada pela verificação App.getInfo().version. As vistas/cores/Google/gestão IP continuam compatíveis; o login corporativo exige nova APK e registo Entra aprovado.",
     "olderNativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
   }
 }

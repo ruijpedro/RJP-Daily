@@ -1,4 +1,4 @@
-# Agenda RJP v1.1.27 — Integração Microsoft 365 IP (APK)
+# Agenda RJP v1.1.28 — OTA compatível, Outlook IP e calendários prioritários
 
 **Android (APK) + WebApp + Atualização OTA preparada** · Português de Portugal · Autor Rui Jorge Pedro
 
@@ -261,3 +261,8 @@ Exportação Android usa anexo nativo; backup completo da agenda e IP. Importaç
 - Autenticação Authorization Code + PKCE via browser do sistema e callback nativo agenda-rjp://oauth/microsoft; não guardar tokens/refresh tokens.
 - Eventos Microsoft Graph Calendars.ReadBasic lidos em memória e classificados Profissionais (verde). Sem acesso a email, sem gravação de eventos no Outlook, sem exportação de conteúdo corporativo para widgets/backups.
 - Cores e prioridades profissionais/académicas já disponíveis na OTA v1.1.26 em APKs anteriores.
+
+## v1.1.28
+- OTA de cores, categorias e planeamento por semanas com retrocompatibilidade de APK 1.1.14+.
+- Ligação Microsoft 365 IP está disponível apenas em APK 1.1.27+ e após consentimento da organização; nunca transmite dados Outlook para o widget ou para contas Google.
+- Assinatura permanente mantida, configuração native baseline atualizada.
