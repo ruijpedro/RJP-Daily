@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.18",
+  "nativeVersion": "1.1.23",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -44,12 +44,12 @@
   },
   "patchAndroidGitBlobSha": "a424821e62099e36bfd8ec9451c67d9347145b70",
   "allowedCosmeticPatchBlobShas": [],
-  "nativeWidgetTreeSha": "a9a92212655ea43db287dcb86de5ada4cdb19d29",
+  "nativeWidgetTreeSha": "7462b7681ed0799ab015fbb9e084276f5f160bac",
   "compatibleMinNativeVersion": "1.1.14",
   "compatibilityAudit": {
     "from": "1.1.14",
-    "through": "1.1.18",
-    "reason": "O único delta nativo entre estas APKs é o atalho Avisos IP nos layouts/renderer. O plugin AgendaWidget, MainActivity, dependências e configuração permanecem iguais; o bundle Web suporta ambas.",
+    "through": "1.1.23",
+    "reason": "Auditoria de árvores nativas 1.1.14→1.1.18→1.1.23: apenas representação/altura/descrições dos widgets Android. AgendaWidgetPlugin, MainActivity, assinatura, permissões, dependências e configuração Capacitor são compatíveis. APK 1.1.23 necessária para os novos widgets de 3/7 dias; bundles Web futuros continuam compatíveis com bases anteriores.",
     "olderNativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
   }
 }
