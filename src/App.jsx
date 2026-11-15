@@ -313,12 +313,12 @@ function App(){
      notify('Guardado, mas o aviso ainda não ficou agendado. Verifica as permissões de notificação.');
    }
    if(item.addToGoogle && item.when){
-    if(!googleConnected())notify('Guardado localmente. Liga o Google Calendar para sincronizar este compromisso.');
+    if(!googleConnected()){setGoogleWriteStatus('Guardado apenas na Agenda RJP: a conta Google principal não está autorizada.');notify('Guardado apenas na Agenda RJP. Liga a conta Google para enviar.');}
     else {
      try{const googleEventId=await upsertGoogle(item);setItems(prev=>prev.map(i=>i.id===item.id?{...i,googleEventId}:i));setGoogleWriteStatus('Compromisso enviado com sucesso para o calendário principal da conta Google.');notify('Guardado e enviado ao Google Calendar.');await refreshGoogle(true);}
      catch(e){setGoogleWriteStatus('Erro ao enviar: '+e.message);notify('Registo guardado na Agenda RJP; envio Google falhou. Consulta as Definições.');}
     }
-   } else if (!Capacitor.isNativePlatform()) notify('Guardado. Na WebApp, os alertas com o navegador fechado não estão garantidos; usa a APK Android.');
+   } else if (!Capacitor.isNativePlatform()){notify('Guardado apenas na Agenda RJP. Para enviar ao Google, usa o botão da nuvem.');}
    else if(result.scheduled)notify('Guardado com notificação agendada.');
    else if(!when)notify('Nota guardada.');
    setModal(null);
