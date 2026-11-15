@@ -128,33 +128,45 @@ export async function upsertGoogle(item){
   const calendarId=encodeURIComponent(item.googleCalendarId||'primary');
   const base='/calendars/'+calendarId+'/events';
   const payload=googleEventPayload(item);
+  const eventPath=id=>base+'/'+encodeURIComponent(id);
+  // Uma resposta POST/PATCH não basta: confirmar que o evento é legível
+  // no calendário de destino antes de marcar o registo como sincronizado.
+  const confirm=async id=>{
+    if(!id)throw new Error('O Google não devolveu identificador do evento.');
+    const saved=await request(eventPath(id));
+    if(saved?.id!==id || saved?.status==='cancelled'){
+      throw new Error('O Google não confirmou o evento no calendário de destino.');
+    }
+    return id;
+  };
   if(item.googleEventId){
-    const event=await request(base+'/'+encodeURIComponent(item.googleEventId),
+    const event=await request(eventPath(item.googleEventId),
       {method:'PATCH',body:JSON.stringify(payload)});
-    return event.id;
+    return confirm(event?.id);
   }
-  // O mesmo registo local recebe sempre o mesmo ID no Google para evitar
-  // duplicações após perda de Internet durante a confirmação.
+  // ID estável evita duplicações se o POST for aceite mas a resposta se perder.
   const fixedId=stableGoogleId(item.id);
   const resource={...payload};
   if(fixedId){
     resource.id=fixedId;
     resource.extendedProperties={private:{rjpLocalId:String(item.id)}};
   }
+  let id;
   try{
     const event=await request(base,{method:'POST',body:JSON.stringify(resource)});
-    return event.id;
+    id=event?.id;
   }catch(error){
     if(error.status!==409 || !fixedId)throw error;
-    const existing=await request(base+'/'+encodeURIComponent(fixedId));
+    const existing=await request(eventPath(fixedId));
     if(existing?.extendedProperties?.private?.rjpLocalId!==String(item.id)){
       throw new Error('Existe um conflito de identificador Google. Não foi criado outro evento.');
     }
-    return existing.id;
+    id=existing.id;
   }
+  return confirm(id);
 }
 export async function deleteGoogleEvent(id){
-  if(!id || !accessToken)return;
+  if(!id)return;
   return request(`/calendars/primary/events/${encodeURIComponent(id)}`,{method:'DELETE'});
 }
 /** Lê cada conta autorizada de forma independente. Uma falha não bloqueia as restantes. */
