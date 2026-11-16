@@ -507,10 +507,10 @@ function App(){
    if(Capacitor.getPlatform()!=='android')return;
    let active=true,subscription=null,lastUrl='',lastAt=0;
    const handle=({url}={})=>{
-     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts|week|three|month|day)$/.test(url||''))return;
+     if(!active||!/^agenda-rjp:\/\/widget\/(?:agenda|new|voice|alerts|week|three|month|day|date\/\d{4}-\d{2}-\d{2})$/.test(url||''))return;
      if(url===lastUrl&&Date.now()-lastAt<1500)return;
      lastUrl=url;lastAt=Date.now();
-     widgetActionRef.current?.(url.split('/').pop());
+     widgetActionRef.current?.(url.split('/').slice(3).join('/'));
    };
    void (async()=>{
      subscription=await CapacitorApp.addListener('appUrlOpen',handle);
