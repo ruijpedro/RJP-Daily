@@ -130,11 +130,13 @@ for(const type of fs.readdirSync(widgetRes)){
 const widgetReceivers=[
  ['AgendaCompactWidget','widget_agenda_compact_info'],
  ['AgendaFullWidget','widget_agenda_full_info'],
+ ['AgendaDayWidget','widget_agenda_day_info'],
+ ['AgendaMonthWidget','widget_agenda_month_info'],
 ];
 const receiverXml=widgetReceivers.map(([klass,info])=>
   '        <receiver android:name=".'
   +klass+'" android:exported="true" android:label="Agenda RJP · '
-  +(klass==='AgendaCompactWidget'?'3 dias 2×3':'Semana ISO 4×4')
+  +({AgendaCompactWidget:'3 dias',AgendaFullWidget:'7 dias',AgendaDayWidget:'Diária',AgendaMonthWidget:'Mensal'}[klass])
   +'">\n'
   +'            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>\n'
   +'            <meta-data android:name="android.appwidget.provider" android:resource="@xml/'
@@ -146,6 +148,6 @@ if(!manifest.includes('android:name=".AgendaCompactWidget"')){
  if(!manifest.includes('android:name=".AgendaCompactWidget"'))throw new Error('Não foi possível declarar os widgets no AndroidManifest.');
  fs.writeFileSync(manifestPath,manifest);
 }
-console.log('Agenda RJP: widgets nativos 3 dias (2×3) e Semana ISO (4×4) configurados.');
+console.log('Agenda RJP: widgets Diária, 3 dias, 7 dias e Mensal configurados.');
 
 console.log('MainActivity, permissões, assinatura e novos ícones Agenda RJP aplicados.');
