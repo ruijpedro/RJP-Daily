@@ -36,12 +36,18 @@ final class WidgetRenderer {
             new ComponentName(context, AgendaCompactWidget.class)), false);
         redraw(context, manager, manager.getAppWidgetIds(
             new ComponentName(context, AgendaFullWidget.class)), true);
+        redrawMode(context, manager, manager.getAppWidgetIds(new ComponentName(context, AgendaDayWidget.class)), "day");
+        redrawMode(context, manager, manager.getAppWidgetIds(new ComponentName(context, AgendaMonthWidget.class)), "month");
+    }
+
+    static void redrawMode(Context context, AppWidgetManager manager, int[] ids, String mode) {
+        for(int id:ids){try{manager.updateAppWidget(id,render(context,mode));}catch(Exception ignored){}}
     }
 
     static void redraw(Context context, AppWidgetManager manager, int[] ids, boolean full) {
         for (int id : ids) {
             try {
-                manager.updateAppWidget(id, render(context, full));
+                manager.updateAppWidget(id, render(context, full?"week":"three"));
             } catch (Exception ignored) {
                 // Não bloquear as restantes instâncias no launcher.
             }
@@ -55,10 +61,13 @@ final class WidgetRenderer {
         c.setTimeInMillis(time);
         return c;
     }
-    private static RemoteViews render(Context context, boolean full) {
+    private static RemoteViews render(Context context, String mode) {
+        boolean full="week".equals(mode)||"month".equals(mode);
+        boolean monthly="month".equals(mode);
+        boolean daily="day".equals(mode);
         RemoteViews view = new RemoteViews(context.getPackageName(),
             full ? R.layout.widget_agenda_full : R.layout.widget_agenda_compact);
-        PendingIntent click = widgetIntent(context, full ? "week" : "three", full ? 4508 : 4509);
+        PendingIntent click = widgetIntent(context, mode, 4500+Math.abs(mode.hashCode()%400));
         view.setOnClickPendingIntent(R.id.widget_root, click);
         view.setOnClickPendingIntent(R.id.widget_ip_alerts, widgetIntent(context, "alerts", 4507));
         if (full) {
@@ -79,7 +88,10 @@ final class WidgetRenderer {
         Calendar sunday=(Calendar)monday.clone();
         sunday.add(Calendar.DAY_OF_MONTH,6);
         String header="SEMANA "+isoWeek+" · "+format(monday.getTimeInMillis(),"dd MMM")+" – "+format(sunday.getTimeInMillis(),"dd MMM")+" "+isoYear;
+        if(monthly)header=format(now,"MMMM yyyy").toUpperCase(PT)+" · SEMANA "+isoWeek;
+        if(daily)header=format(now,"EEEE dd MMMM")+" · SEMANA "+isoWeek;
         view.setTextViewText(R.id.widget_subtitle,header);
+        if(!full)view.setTextViewText(R.id.widget_title,daily?"AGENDA · HOJE":"AGENDA · 3 DIAS");
 
         long updatedAt=context.getSharedPreferences("agenda_rjp_widget",Context.MODE_PRIVATE).getLong("updatedAt",0L);
         String raw=context.getSharedPreferences("agenda_rjp_widget",Context.MODE_PRIVATE).getString("events","[]");
@@ -97,6 +109,7 @@ final class WidgetRenderer {
             new int[]{R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3,R.id.widget_day_4,R.id.widget_day_5,R.id.widget_day_6,R.id.widget_day_7}:
             new int[]{R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3};
         Calendar day=(Calendar)(full?monday:today).clone();
+        if(monthly){day.set(Calendar.DAY_OF_MONTH,1);day.add(Calendar.DAY_OF_MONTH,-((day.get(Calendar.DAY_OF_WEEK)+5)%7));}
         for(int i=0;i<rowIds.length;i++){
             String key=format(day.getTimeInMillis(),"yyyy-MM-dd");
             String label=format(day.getTimeInMillis(),"EEE dd");
@@ -111,9 +124,15 @@ final class WidgetRenderer {
             String entry=first==null?(updatedAt==0L?"Abrir app para sincronizar":"Sem compromissos"):
                 (first.optBoolean("allDay",false)?"Dia inteiro":first.optString("time","").replace(":","h"))+
                 " · "+first.optString("title","Compromisso")+(count>1?"  +"+(count-1):"");
-            view.setTextViewText(rowIds[i],label+"  ·  "+entry);
+            if(monthly){
+                Calendar end=(Calendar)day.clone();end.add(Calendar.DAY_OF_MONTH,6);
+                int total=0;
+                for(JSONObject e:entries){String d=e.optString("date","");if(d.compareTo(key)>=0&&d.compareTo(format(end.getTimeInMillis(),"yyyy-MM-dd"))<=0)total++;}
+                view.setTextViewText(rowIds[i],format(day.getTimeInMillis(),"dd MMM")+" – "+format(end.getTimeInMillis(),"dd MMM")+"   ·   "+total+" compromisso(s)");
+            }else view.setTextViewText(rowIds[i],label+"  ·  "+entry);
+            if(daily&&i>0)view.setViewVisibility(rowIds[i],android.view.View.GONE);
             view.setTextColor(rowIds[i],first==null?Color.parseColor("#91A8B3"):itemColor(first));
-            day.add(Calendar.DAY_OF_MONTH,1);
+            day.add(Calendar.DAY_OF_MONTH,monthly?7:1);
         }
         if(full)view.setTextViewText(R.id.widget_updated,updatedAt==0L?"Por sincronizar · abre a aplicação":
             "Atualizado: "+format(updatedAt,"dd MMM HH:mm")+" · Google sincronizado ao abrir a app");
