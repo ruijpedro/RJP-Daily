@@ -52,7 +52,7 @@ function Card({item,onToggle,onEdit,onDelete,onOpenIP,onSyncGoogle}){
  return <div className={`item-card ${item.done?'is-done':''}`}>
    <span className={`item-kind ${item.kind}`}><I size={18}/></span>
    <div className="item-info">
-    <div className="item-heading"><span className="item-title">{item.title}</span>{fromGoogle&&<span className="google-tag">Google</span>}{fromMicrosoft&&<span className="google-tag">Outlook IP · Só leitura</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}{!fromGoogle&&Boolean(item.googleEventId)&&<span className="google-tag">Enviado ao Google</span>}</div>
+    <div className="item-heading"><button type="button" className="item-title" style={{border:0,background:'transparent',padding:0,textAlign:'left',cursor:'pointer',font:'inherit',color:'inherit'}} onClick={()=>onEdit(item)} title="Abrir atividade">{item.title}</button>{fromGoogle&&<span className="google-tag">Google</span>}{fromMicrosoft&&<span className="google-tag">Outlook IP · Só leitura</span>}{fromIP&&<span className="google-tag">IP_RJP</span>}{!fromGoogle&&Boolean(item.googleEventId)&&<span className="google-tag">Enviado ao Google</span>}</div>
     {item.details&&<div className="item-details">{item.details}</div>}
     <div className="item-meta">
       <span>{item.category||'Agenda'}</span>
@@ -498,7 +498,7 @@ function App(){
  const widgetActionRef=useRef(null);
  widgetActionRef.current=(action)=>{
    if(action==='alerts'){setModal(null);setTab('avisos');return;}
-   if(action==='week'||action==='three'){setModal(null);setCalendarView('week');setWeekWorkOnly(false);setTab('agenda');const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());return;}
+   if(action==='week'||action==='three'||action==='month'||action==='day'){setModal(null);setCalendarView(action==='month'?'month':'week');setWeekWorkOnly(false);setTab('agenda');const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());return;}
    const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
    if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(connected&&autoGoogleNew)}));}
    else if(action==='voice'){void startVoice();}
@@ -507,7 +507,7 @@ function App(){
    if(Capacitor.getPlatform()!=='android')return;
    let active=true,subscription=null,lastUrl='',lastAt=0;
    const handle=({url}={})=>{
-     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts|week|three)$/.test(url||''))return;
+     if(!active||!/^agenda-rjp:\/\/widget\/(agenda|new|voice|alerts|week|three|month|day)$/.test(url||''))return;
      if(url===lastUrl&&Date.now()-lastAt<1500)return;
      lastUrl=url;lastAt=Date.now();
      widgetActionRef.current?.(url.split('/').pop());
