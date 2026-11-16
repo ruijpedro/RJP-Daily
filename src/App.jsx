@@ -497,6 +497,11 @@ function App(){
  // Atalhos do widget: URI explícito Android, validado no arranque e em execução.
  const widgetActionRef=useRef(null);
  widgetActionRef.current=(action)=>{
+   if(/^date\/\d{4}-\d{2}-\d{2}$/.test(action)){
+     const d=new Date(action.slice(5)+'T12:00:00');
+     if(!Number.isNaN(d.getTime())){setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');setTab('agenda');setModal(null);}
+     return;
+   }
    if(action==='alerts'){setModal(null);setTab('avisos');return;}
    if(action==='week'||action==='three'||action==='month'||action==='day'){setModal(null);setCalendarView(action==='month'?'month':'week');setWeekWorkOnly(false);setTab('agenda');const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());return;}
    const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
