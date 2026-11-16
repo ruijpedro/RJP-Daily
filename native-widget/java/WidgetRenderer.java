@@ -66,11 +66,11 @@ final class WidgetRenderer {
         boolean monthly="month".equals(mode);
         boolean daily="day".equals(mode);
         RemoteViews view = new RemoteViews(context.getPackageName(),
-            full ? R.layout.widget_agenda_full : R.layout.widget_agenda_compact);
+            monthly ? R.layout.widget_agenda_month : (full ? R.layout.widget_agenda_full : R.layout.widget_agenda_compact));
         PendingIntent click = widgetIntent(context, mode, 4500+Math.abs(mode.hashCode()%400));
         view.setOnClickPendingIntent(R.id.widget_root, click);
-        view.setOnClickPendingIntent(R.id.widget_ip_alerts, widgetIntent(context, "alerts", 4507));
-        if (full) {
+        if(!monthly)view.setOnClickPendingIntent(R.id.widget_ip_alerts, widgetIntent(context, "alerts", 4507));
+        if (full&&!monthly) {
             view.setOnClickPendingIntent(R.id.widget_open, click);
             view.setOnClickPendingIntent(R.id.widget_add, widgetIntent(context, "new", 4505));
             view.setOnClickPendingIntent(R.id.widget_voice, widgetIntent(context, "voice", 4506));
@@ -92,6 +92,7 @@ final class WidgetRenderer {
         if(daily)header=format(now,"EEEE dd MMMM")+" · SEMANA "+isoWeek;
         view.setTextViewText(R.id.widget_subtitle,header);
         if(!full)view.setTextViewText(R.id.widget_title,daily?"AGENDA · HOJE":"AGENDA · 3 DIAS");
+        if(monthly)view.setTextViewText(R.id.widget_title,"Agenda RJP · Mensal");
 
         long updatedAt=context.getSharedPreferences("agenda_rjp_widget",Context.MODE_PRIVATE).getLong("updatedAt",0L);
         String raw=context.getSharedPreferences("agenda_rjp_widget",Context.MODE_PRIVATE).getString("events","[]");
@@ -105,6 +106,32 @@ final class WidgetRenderer {
         }catch(Exception ignored){}
         Collections.sort(entries,Comparator.comparingLong(e->e.optLong("timestamp",0L)));
 
+        if(monthly){
+            Calendar first=newCalendar(now);
+            first.set(Calendar.DAY_OF_MONTH,1);
+            int shownMonth=first.get(Calendar.MONTH);
+            first.add(Calendar.DAY_OF_MONTH,-((first.get(Calendar.DAY_OF_WEEK)+5)%7));
+            for(int i=0;i<42;i++){
+                String key=format(first.getTimeInMillis(),"yyyy-MM-dd");
+                int count=0;
+                int color=Color.parseColor("#1967D2");
+                for(JSONObject event:entries){
+                    if(key.equals(event.optString("date",""))){count++;if(count==1)color=itemColor(event);}
+                }
+                int cell=context.getResources().getIdentifier("month_cell_"+i,"id",context.getPackageName());
+                if(cell!=0){
+                    String dayLabel=String.valueOf(first.get(Calendar.DAY_OF_MONTH));
+                    view.setTextViewText(cell,dayLabel+(count>0?"\\n●":""));
+                    boolean inMonth=first.get(Calendar.MONTH)==shownMonth;
+                    boolean isToday=key.equals(format(now,"yyyy-MM-dd"));
+                    view.setTextColor(cell,!inMonth?Color.parseColor("#BDC1C6"):count>0?color:isToday?Color.parseColor("#1967D2"):Color.parseColor("#202124"));
+                    view.setOnClickPendingIntent(cell,widgetIntent(context,"date/"+key,6000+i));
+                }
+                first.add(Calendar.DAY_OF_MONTH,1);
+            }
+            view.setTextViewText(R.id.widget_updated,updatedAt==0L?"Abre a app para sincronizar":"Atualizado: "+format(updatedAt,"dd MMM HH:mm"));
+            return view;
+        }
         int[] rowIds=full?
             new int[]{R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3,R.id.widget_day_4,R.id.widget_day_5,R.id.widget_day_6,R.id.widget_day_7}:
             new int[]{R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3};
