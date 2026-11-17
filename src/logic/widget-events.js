@@ -19,7 +19,7 @@ export function agendaWidgetEvents(items,now=new Date()){
         const allDay=fullDay || index>0;
         const stamp=allDay?Date.parse(date+'T12:00:00Z'):new Date(i.when).getTime();
         if(!date||!Number.isFinite(stamp))return null;
-        return {date,allDay,timestamp:stamp, id:String(i.id||i.googleEventId||''),
+        return {date,allDay,timestamp:stamp, id:String(i.id||''),
           title:String(i.title||'Compromisso').trim().slice(0,140),
           time:allDay?'':timeFormatter.format(new Date(stamp)),
           source:i.fromGoogle?'Google':i.fromIP?'IP':'RJP',
