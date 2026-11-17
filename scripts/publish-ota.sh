@@ -4,6 +4,12 @@ set -euo pipefail
 VERSION="$(node -p 'require("./package.json").version')"
 BASE_NATIVE="$(node -p '(()=>{const b=require("./config/ota-native-baseline.json");return b.compatibleMinNativeVersion||b.nativeVersion})()')"
 MIN_NATIVE="${RJP_MIN_NATIVE:-$BASE_NATIVE}"
+# Um texto de log colado por engano no campo do workflow nao e uma versao.
+# Nesses casos usa-se exclusivamente a baseline auditada, nunca uma versao extraida do texto.
+if [[ ! "$MIN_NATIVE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "::warning::Campo APK minima invalido; a usar baseline auditada $BASE_NATIVE."
+  MIN_NATIVE="$BASE_NATIVE"
+fi
 RELEASE_NOTES="${RJP_RELEASE_NOTES:-Melhorias e correções da RJP Daily}"
 TAG="ota-v$VERSION"
 ASSET="rjp-daily-web.zip"
