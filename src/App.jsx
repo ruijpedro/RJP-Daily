@@ -96,7 +96,7 @@ function App(){
  const [clientId,setClientId]=useState(()=>localStorage.getItem('rjp-daily-google-client-id')||import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID||DEFAULT_GOOGLE_WEB_CLIENT_ID);
  const [googleError,setGoogleError]=useState('');
  const [googleWriteStatus,setGoogleWriteStatus]=useState('');
- const [autoGoogleNew,setAutoGoogleNew]=useState(()=>localStorage.getItem('agenda-rjp-google-auto-new')==='1');
+ const [autoGoogleNew,setAutoGoogleNew]=useState(()=>localStorage.getItem('agenda-rjp-google-auto-new')!=='0');
  const [connected,setConnected]=useState(false);
  const [account,setAccount]=useState('');
  const [googleAccounts,setGoogleAccounts]=useState(()=>getGoogleAccounts());
@@ -291,7 +291,7 @@ function App(){
  const pending=useMemo(()=>items.filter(i=>i.kind==='tarefa'&&!i.done&&i.when&&new Date(i.when)<clock),[items,clock]);
  const upcoming=useMemo(()=>visibleAll.filter(i=>!i.done&&i.when&&new Date(i.when)>=clock).sort((a,b)=>new Date(a.when)-new Date(b.when)),[visibleAll,clock]);
  const applyFilters=(a)=>a.filter(i=>(filter==='Todos'||i.category===filter||filter==='Pendentes'&&!i.done)&&(search.trim()===''||`${i.title} ${i.details||''}`.toLocaleLowerCase('pt-PT').includes(search.trim().toLocaleLowerCase('pt-PT'))));
- const prepare=(text='')=>{const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(connected&&autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');};
+ const prepare=(text='')=>{const d=createDraft(text);setDraft({...d,addToGoogle:Boolean(autoGoogleNew&&d.kind!=='nota')});setOriginalItem(null);setModal('editor');};
  const edit=(item)=>{setDraft({...emptyDraft(),...item,when:item.when?localDateTime(item.when):''});setOriginalItem(item);setModal('editor');};
  const updateDraft=(k,value)=>setDraft(prev=>({...prev,[k]:value}));
 
@@ -505,7 +505,7 @@ function App(){
    if(action==='alerts'){setModal(null);setTab('avisos');return;}
    if(action==='week'||action==='three'||action==='month'||action==='day'){setModal(null);setCalendarView(action==='month'?'month':'week');setWeekWorkOnly(false);setTab('agenda');const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());return;}
    const d=new Date();setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setTab('agenda');
-   if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(connected&&autoGoogleNew)}));}
+   if(action==='new'){prepare();setDraft(prev=>({...prev,kind:'evento',when:localDateTime(d),addToGoogle:Boolean(autoGoogleNew)}));}
    else if(action==='voice'){void startVoice();}
  };
  useEffect(()=>{
@@ -777,7 +777,7 @@ function App(){
         <p className="fineprint">Os eventos criados na Agenda RJP não são enviados por defeito sem a tua escolha. O destino é o calendário principal da conta acima.</p>
         <div className="setting-line"><span>Tarefas/compromissos por enviar</span><strong>{googlePending.length}</strong></div>
         <button type="button" className="primary-action stretch" disabled={busy||googlePending.length===0||!googleConnected()} onClick={syncPendingGoogle}><Cloud size={16}/> Enviar {googlePending.length} compromisso(s) para o Google</button>
-        <label className="toggle-line"><span><strong>Enviar automaticamente novos compromissos</strong><small>Quando a conta está ligada, pré-seleciona «Adicionar ao Google Calendar» nas novas tarefas e reuniões. Podes desmarcar antes de guardar. Não inclui notas ou módulos IP.</small></span>
+        <label className="toggle-line"><span><strong>Enviar automaticamente novos compromissos</strong><small>Pré-seleciona «Adicionar ao Google Calendar» nas novas tarefas e reuniões. Se a conta não estiver ligada, guarda localmente e permite enviar depois. Podes desmarcar antes de guardar. Não inclui notas ou módulos IP.</small></span>
           <input type="checkbox" checked={autoGoogleNew} onChange={e=>{const yes=e.target.checked;setAutoGoogleNew(yes);localStorage.setItem('agenda-rjp-google-auto-new',yes?'1':'0')}}/></label>
         {googleWriteStatus&&<p role="status" className="fineprint"><strong>Envio Google:</strong> {googleWriteStatus}</p>}
         <div className="setting-line"><span>Eventos lidos</span><strong>{googleCalendarInfo.loading?'A atualizar…':googleCalendarInfo.count}</strong></div>
