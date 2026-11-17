@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - package.json
+      - config/ota-native-baseline.json
+      - scripts/verify-ota-native.mjs
   workflow_dispatch:
     inputs:
       min_native_version:
