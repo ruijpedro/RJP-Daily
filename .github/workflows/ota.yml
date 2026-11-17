@@ -8,6 +8,7 @@ on:
       - package.json
       - config/ota-native-baseline.json
       - scripts/verify-ota-native.mjs
+      - scripts/publish-ota.sh
   workflow_dispatch:
     inputs:
       min_native_version:
