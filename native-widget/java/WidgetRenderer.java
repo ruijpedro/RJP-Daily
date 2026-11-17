@@ -70,6 +70,7 @@ final class WidgetRenderer {
         PendingIntent click = widgetIntent(context, mode, 4500+Math.abs(mode.hashCode()%400));
         view.setOnClickPendingIntent(R.id.widget_root, click);
         if(!monthly)view.setOnClickPendingIntent(R.id.widget_ip_alerts, widgetIntent(context, "alerts", 4507));
+        if("three".equals(mode))view.setOnClickPendingIntent(R.id.widget_add, widgetIntent(context, "new", 4511));
         if (full&&!monthly) {
             view.setOnClickPendingIntent(R.id.widget_open, click);
             view.setOnClickPendingIntent(R.id.widget_add, widgetIntent(context, "new", 4505));
@@ -130,6 +131,30 @@ final class WidgetRenderer {
                 first.add(Calendar.DAY_OF_MONTH,1);
             }
             view.setTextViewText(R.id.widget_updated,updatedAt==0L?"Abre a app para sincronizar":"Atualizado: "+format(updatedAt,"dd MMM HH:mm"));
+            return view;
+        }
+        if("three".equals(mode)){
+            String todayLabel=format(now,"EEEE, dd/MM");
+            view.setTextViewText(R.id.widget_title,todayLabel.substring(0,1).toUpperCase(PT)+todayLabel.substring(1));
+            view.setTextViewText(R.id.widget_subtitle,"PRÓXIMAS ATIVIDADES");
+            int[] cards={R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3};
+            int shown=0;
+            for(JSONObject e:entries){
+                if(shown>=cards.length)break;
+                long stamp=e.optLong("timestamp",0L);
+                if(stamp<now-3600000L)continue;
+                int cell=cards[shown];
+                String date=e.optString("date","");
+                String label=date.equals(format(now,"yyyy-MM-dd"))?"Hoje":format(stamp,"EEEE, dd/MM");
+                String time=e.optBoolean("allDay",false)?"Dia inteiro":e.optString("time","");
+                view.setTextViewText(cell,label+"\\n"+e.optString("title","Atividade")+"  ·  "+time);
+                String id=e.optString("id","");
+                String target=id.isEmpty()?"date/"+date:"event/"+Uri.encode(id);
+                view.setOnClickPendingIntent(cell,widgetIntent(context,target,4700+shown));
+                shown++;
+            }
+            if(shown==0){view.setTextViewText(cards[0],"Não há mais nada hoje");shown=1;}
+            for(int i=shown;i<cards.length;i++)view.setViewVisibility(cards[i],android.view.View.GONE);
             return view;
         }
         int[] rowIds=full?
