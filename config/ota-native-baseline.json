@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.27",
+  "nativeVersion": "1.1.29",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -43,14 +43,14 @@
       }
     }
   },
-  "patchAndroidGitBlobSha": "20021be5d59ac9881189f62e10439adaca29c05d",
+  "patchAndroidGitBlobSha": "bd741dfc8c8652f1a53f268881ffe1e8708deff6",
   "allowedCosmeticPatchBlobShas": [],
   "nativeWidgetTreeSha": "7462b7681ed0799ab015fbb9e084276f5f160bac",
-  "compatibleMinNativeVersion": "1.1.14",
+  "compatibleMinNativeVersion": "1.1.29",
   "compatibilityAudit": {
-    "from": "1.1.14",
-    "through": "1.1.27",
-    "reason": "O bundle Web só invoca o plugin nativo Browser em Android com APK >=1.1.27. Em bases anteriores, a ligação Microsoft está desativada pela verificação App.getInfo().version. As vistas/cores/Google/gestão IP continuam compatíveis; o login corporativo exige nova APK e registo Entra aprovado.",
-    "olderNativeWidgetTreeSha": "367e4f80878bc1de1771d6d20cc0d2d76ea768f9"
-  }
+    "from": "1.1.29",
+    "through": "1.1.29",
+    "reason": "OTA 1.1.30 para APK 1.1.29 confirmada pelo utilizador. O verificador compara o script e a árvore de widgets com o commit de referência nativo; APKs anteriores não são abrangidas."
+  },
+  "nativeSourceCommit": "24b4911285f11a74d912da1745fc24fde3f3cecd"
 }
