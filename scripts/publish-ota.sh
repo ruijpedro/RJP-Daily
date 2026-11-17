@@ -11,15 +11,8 @@ ASSET="rjp-daily-web.zip"
 echo "RJP Daily OTA $VERSION | APK base $MIN_NATIVE"
 node scripts/verify-ota-native.mjs "$MIN_NATIVE"
 
-# Na publicação automática não se publicam versões repetidas.
-if [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
-  PREVIOUS="$(git show HEAD^:package.json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{process.stdout.write(JSON.parse(s).version)}catch{}})' || true)"
-  if [[ -n "$PREVIOUS" && "$PREVIOUS" == "$VERSION" ]]; then
-    echo "Versão inalterada: nada a publicar."
-    exit 0
-  fi
-fi
-
+# O tag da release e a verificacao de compatibilidade controlam a idempotencia.
+# Uma correcao ao baseline pode publicar a mesma versao ainda nao lancada.
 PRIVATE="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private')"
 if [[ "$PRIVATE" != "false" ]]; then
   echo "::error::Para atualizações sem credenciais na APK, o repositório precisa de ser público."
