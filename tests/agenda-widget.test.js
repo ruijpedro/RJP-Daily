@@ -22,8 +22,8 @@ test('widget conserva eventos de dia inteiro na data sem deslocação UTC',()=>{
 test('widget não exibe conteúdo das notas pessoais nem URLs privadas no payload',()=>{
  const list=agendaWidgetEvents([{title:'Trabalho',details:'NIF e dados confidenciais',googleEventId:'SECRET',
   calendarId:'https://private.example/?auth=secret',when:'2026-11-09T13:00:00Z',kind:'evento'}],now);
- assert.equal(list.length,1);assert.deepEqual(Object.keys(list[0]).sort(),
-  ['allDay','date','source','time','timestamp','title','type'].sort());
+ assert.equal(list.length,1);assert.equal(list[0].id,'');assert.deepEqual(Object.keys(list[0]).sort(),
+  ['allDay','date','id','source','time','timestamp','title','type'].sort());
 });
 test('widget elimina duplicados e compromissos de datas anteriores',()=>{
  const item={title:'Treino',when:'2026-11-10T20:00:00Z',kind:'evento'};
