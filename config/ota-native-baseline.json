@@ -45,12 +45,11 @@
   },
   "patchAndroidGitBlobSha": "bd741dfc8c8652f1a53f268881ffe1e8708deff6",
   "allowedCosmeticPatchBlobShas": [],
-  "nativeWidgetTreeSha": "7462b7681ed0799ab015fbb9e084276f5f160bac",
+  "nativeWidgetTreeSha": "b72c3d0e9a9e39dc3e13d1f7d8ff31e138cda234",
   "compatibleMinNativeVersion": "1.1.29",
   "compatibilityAudit": {
     "from": "1.1.29",
     "through": "1.1.29",
-    "reason": "OTA 1.1.30 para APK 1.1.29 confirmada pelo utilizador. O verificador compara o script e a árvore de widgets com o commit de referência nativo; APKs anteriores não são abrangidas."
-  },
-  "nativeSourceCommit": "24b4911285f11a74d912da1745fc24fde3f3cecd"
+    "reason": "APK 1.1.29 confirmada pelo utilizador, com arvore nativa idêntica à do commit de compilação 24b4911. O SHA da arvore native-widget foi verificado pela API GitHub; script Android e dependencias nativas tambem validados. OTA restrita a APK >= 1.1.29."
+  }
 }
