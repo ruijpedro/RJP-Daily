@@ -710,7 +710,7 @@ function App(){
        <div className="calendar-grid">{['S','T','Q','Q','S','S','D'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}
         {monthCells.map((day,i)=><button key={i} disabled={!day} className={`day-cell ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(listDay)?'selected':''} ${day&&dateKey(new Date(listYear,listMonth,day))===dateKey(clock)?'today':''}`}
           aria-label={day?day+' de '+monthLabel+', '+countDate(day)+' registos':'Fora do mês'} onClick={()=>day&&setListDay(new Date(listYear,listMonth,day))}>
-          {day||''}{day&&<><span className="day-indicators">
+          {day&&<><span className="day-number">{day}</span><span className="calendar-event-boxes">{(monthGroups[dateKey(new Date(listYear,listMonth,day))]||[]).slice(0,2).map((event,j)=><span key={event.id||j} className="calendar-event-box" style={{backgroundColor:calendarPresentation(event,calendarColors).color}} title={event.title}>{event.allDay?'':timeFmt(event.when)+' '}{event.title}</span>)}{countDate(day)>2&&<span className="calendar-event-more">+{countDate(day)-2}</span>}</span><span className="day-indicators">
             {ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='BT')&&<i className="guard-indicator bt" title="Prevenção BT"/>}
             {ipData.guards.some(g=>g.date===localDay(new Date(listYear,listMonth,day))&&g.kind==='CC')&&<i className="guard-indicator cc" title="Prevenção CC"/>}
             {(monthGroups[dateKey(new Date(listYear,listMonth,day))]||[]).some(e=>e.fromGoogle)&&<i className="guard-indicator google" title="Evento Google Calendar"/>}
