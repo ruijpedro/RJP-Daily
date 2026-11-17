@@ -85,3 +85,15 @@
 .planner-priority{display:flex;gap:5px;flex-wrap:wrap}.planner-priority button{border:1px solid #cddcdd;border-radius:11px;background:#f4f7f7;color:#356a6e;font-size:11px;padding:7px 9px}.planner-priority button.active{background:#126d60;color:#fff;border-color:#126d60}
 .weekly-event{border-left:4px solid #64748b}.weekly-event.priority-profissional{background:#eef8f5}.weekly-event.priority-academico{background:#eff5ff}.weekly-event small{display:flex;align-items:center;gap:4px;overflow-wrap:anywhere}
 .calendar-color-dot{display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;vertical-align:middle}.calendar-role-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e3ecee;flex-wrap:wrap}.calendar-role-name{display:flex;align-items:center;flex:1;gap:7px;min-width:150px;overflow-wrap:anywhere;font-size:12px}.calendar-role-controls{display:flex;gap:8px;align-items:center}.calendar-role-controls select{border:1px solid #d1dfdc;border-radius:8px;padding:8px;max-width:180px}.calendar-role-controls input[type=color]{height:34px;width:39px;border:1px solid #d1dfdc;border-radius:8px;padding:3px;background:white}
+
+
+/* Calendário mensal: compromissos em caixas coloridas, estilo Google Calendar. */
+.calendar-grid .day-cell{height:92px;min-height:92px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:3px;padding:5px 3px;overflow:hidden;border-radius:8px;text-align:left}
+.calendar-grid .day-cell .day-number{display:block;text-align:center;font-size:12px;font-weight:750;line-height:18px}
+.calendar-event-boxes{display:flex;flex-direction:column;gap:2px;width:100%;min-width:0;overflow:hidden}
+.calendar-event-box{display:block;width:100%;border-radius:4px;padding:2px 3px;color:#fff;font-size:9px;font-weight:650;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.calendar-event-more{font-size:9px;color:#4e6978;text-align:left;padding-left:3px}
+.calendar-grid .day-cell .day-indicators{display:none}
+.calendar-grid .day-cell .day-count{display:none}
+.calendar-grid .day-cell.selected .calendar-event-more{color:#fff}
+@media(max-width:420px){.calendar-grid{gap:2px}.calendar-grid .day-cell{height:80px;min-height:80px;padding:4px 2px}.calendar-event-box{font-size:8px;padding:2px}}
