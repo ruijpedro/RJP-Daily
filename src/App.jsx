@@ -497,6 +497,12 @@ function App(){
  // Atalhos do widget: URI explícito Android, validado no arranque e em execução.
  const widgetActionRef=useRef(null);
  widgetActionRef.current=(action)=>{
+   if(action.startsWith('event/')){
+     let id='';try{id=decodeURIComponent(action.slice(6));}catch{return;}
+     const found=items.find(item=>String(item.id||item.googleEventId||'')===id);
+     if(found){setTab('agenda');edit(found);}else{setTab('agenda');notify('Atividade não encontrada. Sincroniza a agenda.');}
+     return;
+   }
    if(/^date\/\d{4}-\d{2}-\d{2}$/.test(action)){
      const d=new Date(action.slice(5)+'T12:00:00');
      if(!Number.isNaN(d.getTime())){setListDay(startOfDay(d));setListMonth(d.getMonth());setListYear(d.getFullYear());setCalendarView('month');setTab('agenda');setModal(null);}
