@@ -134,7 +134,7 @@ final class WidgetRenderer {
             return view;
         }
         if("three".equals(mode)){
-            String todayLabel=format(now,"EEEE, dd/MM");
+            String todayLabel=format(now,"EEE, dd/MM");
             view.setTextViewText(R.id.widget_title,todayLabel.substring(0,1).toUpperCase(PT)+todayLabel.substring(1));
             view.setTextViewText(R.id.widget_subtitle,"PRÓXIMAS ATIVIDADES");
             int[] cards={R.id.widget_day_1,R.id.widget_day_2,R.id.widget_day_3};
@@ -145,7 +145,7 @@ final class WidgetRenderer {
                 if(stamp<now-3600000L)continue;
                 int cell=cards[shown];
                 String date=e.optString("date","");
-                String label=date.equals(format(now,"yyyy-MM-dd"))?"Hoje":format(stamp,"EEEE, dd/MM");
+                String label=date.equals(format(now,"yyyy-MM-dd"))?"Hoje":format(stamp,"EEE, dd/MM");
                 String time=e.optBoolean("allDay",false)?"Dia inteiro":e.optString("time","");
                 view.setTextViewText(cell,label+"\\n"+e.optString("title","Atividade")+"  ·  "+time);
                 String id=e.optString("id","");
