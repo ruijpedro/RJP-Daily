@@ -1,5 +1,5 @@
 {
-  "nativeVersion": "1.1.29",
+  "nativeVersion": "1.1.31",
   "appId": "pt.rjp.daily",
   "nativeDependencies": {
     "@capacitor/android": "^8.0.0",
@@ -45,11 +45,12 @@
   },
   "patchAndroidGitBlobSha": "bd741dfc8c8652f1a53f268881ffe1e8708deff6",
   "allowedCosmeticPatchBlobShas": [],
-  "nativeWidgetTreeSha": "b72c3d0e9a9e39dc3e13d1f7d8ff31e138cda234",
-  "compatibleMinNativeVersion": "1.1.29",
+  "nativeWidgetTreeSha": "3d5355f9b2cda091bcf1ae2d09f676127279c2b8",
+  "compatibleMinNativeVersion": "1.1.31",
   "compatibilityAudit": {
-    "from": "1.1.29",
-    "through": "1.1.29",
-    "reason": "APK 1.1.29 confirmada pelo utilizador, com arvore nativa idêntica à do commit de compilação 24b4911. O SHA da arvore native-widget foi verificado pela API GitHub; script Android e dependencias nativas tambem validados. OTA restrita a APK >= 1.1.29."
-  }
+    "from": "1.1.31",
+    "through": "1.1.31",
+    "reason": "APK 1.1.31 compilada com sucesso no GitHub Actions run 45144697367 (commit e69553f) e instalação/funcionamento confirmados pelo utilizador em 2026-11-23. SHA native-widget verificado na árvore Git desse commit. Não assumir compatibilidade com APK 1.1.29, que contém widgets nativos diferentes."
+  },
+  "nativeSourceCommit": "e69553fba2278014c8dd69bfa4a02f7ccef1c48d"
 }
