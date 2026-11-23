@@ -7,12 +7,13 @@ export const defaults={
   vehicles:[
    {id:'v-03-zq-46',plate:'03-ZQ-46',brand:'Fiat',model:'',color:'Branco',type:'Viatura de serviço',active:true,favorite:true},
    {id:'v-23-zp-64',plate:'23-ZP-64',brand:'Renault',model:'Kangoo',color:'Branco',type:'Viatura de serviço',active:true,favorite:true},
-   {id:'v-87-hn-72',plate:'87-HN-72',brand:'Mitsubishi',model:'L200 DI-D',color:'Branco',type:'Pick-up de serviço',active:true,favorite:true}
+   {id:'v-87-hn-72',plate:'87-HN-72',brand:'Mitsubishi',model:'L200 DI-D',color:'Branco',type:'Pick-up de serviço',active:true,favorite:true},
+   {id:'v-cj-02-ub',plate:'CJ-02-UB',brand:'Toyota',model:'',color:'Branco',type:'Viatura de serviço',active:true,favorite:false}
   ],
   places:['Caldas da Rainha','Leiria','Marinha Grande','São Martinho do Porto','Óbidos','Bombarral','Torres Vedras','Mafra','Sabugo','Coimbra','Entroncamento','Guarda'],
   activityTypes:['Inspeção de edifício','Inspeção AMV','Visita de obra','Reunião','Formação','Levantamento','Trabalho administrativo','Outro'],
   defaultVehiclePlate:'03-ZQ-46',
-  vehiclesCatalogVersion:1,
+  vehiclesCatalogVersion:2,
   trips:[],guards:[],activities:[]
 };
 export const localDay=(value=new Date())=>{const d=new Date(value);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -26,7 +27,7 @@ export function normalizeIP(raw){
   // Na primeira abertura após atualização, repõe apenas as viaturas históricas em falta.
   // Depois dessa migração, remoções/edições voluntárias continuam respeitadas.
   vehicles:completeVehicleCatalog(raw,base),
-  vehiclesCatalogVersion:1,
+  vehiclesCatalogVersion:2,
   // Guardar a preferência sem apagar matrículas de deslocações antigas.
   defaultVehiclePlate:typeof raw.defaultVehiclePlate==='string'?raw.defaultVehiclePlate:base.defaultVehiclePlate,
   places:Array.isArray(raw.places)?raw.places.filter(x=>typeof x==='string'):base.places,
@@ -38,10 +39,14 @@ export function normalizeIP(raw){
 }
 
 export const vehicleKey=(plate)=>String(plate||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-/** Introduz uma única vez as 3 matrículas IP_RJP sem duplicar nem apagar outras viaturas. */
+/** Migração incremental: preserva viaturas e preferências existentes, adiciona apenas a nova matrícula Toyota. */
 export function completeVehicleCatalog(raw,base=clone()){
  const vehicles=Array.isArray(raw?.vehicles)?raw.vehicles.filter(x=>x?.plate).map(x=>({...x,id:x.id||newId()})):base.vehicles;
- if(raw?.vehiclesCatalogVersion===1)return vehicles;
+ if(Number(raw?.vehiclesCatalogVersion)>=2)return vehicles;
+ if(Number(raw?.vehiclesCatalogVersion)===1){
+  if(vehicles.some(v=>vehicleKey(v.plate)==='CJ02UB'))return vehicles;
+  return [...vehicles,{...base.vehicles.find(v=>vehicleKey(v.plate)==='CJ02UB')}];
+ }
  const result=[...vehicles];
  const known=new Set(vehicles.map(v=>vehicleKey(v.plate)));
  for(const v of base.vehicles){if(!known.has(vehicleKey(v.plate))){result.push({...v});known.add(vehicleKey(v.plate));}}
