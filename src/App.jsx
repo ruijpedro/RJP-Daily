@@ -277,6 +277,10 @@ function App(){
  const professionalAgenda=useMemo(()=>makeProfessionalAgenda(ipData),[ipData]);
  const localOpen=useMemo(()=>items.filter(i=>!i.done),[items]);
  const googlePending=useMemo(()=>googleExportCandidates(items),[items]);
+ const professionalGooglePending=useMemo(()=>['trips','guards','activities'].flatMap(key=>
+  ipData[key].filter(record=>record.addToGoogle&&!record.googleEventId&&!(key==='guards'&&!record.start))
+   .map(record=>({key,record}))),[ipData]);
+
  const visibleAll=useMemo(()=>{
   const known = new Set([...items.map(i=>i.googleEventId),...ipData.trips.map(i=>i.googleEventId),...ipData.guards.map(i=>i.googleEventId),...ipData.activities.map(i=>i.googleEventId)].filter(Boolean));
   const professionalIds=new Set(items.map(i=>i.linkedIPId).filter(Boolean));
@@ -406,6 +410,29 @@ function App(){
   setGoogleWriteStatus(ok+' compromisso(s) enviado(s); '+failed+' falha(s). Os restantes mantêm-se na app.');
   notify(ok+' compromisso(s) exportado(s) para o Google Calendar.');
   if(ok)await refreshGoogle(true);
+ }
+ async function syncPendingProfessionalGoogle(){
+  if(busy)return;
+  if(!googleConnected()){setGoogleWriteStatus('Autoriza novamente a conta Google principal antes de enviar atividades profissionais.');return;}
+  const pending=professionalGooglePending.slice(0,50);
+  if(!pending.length)return;
+  if(!window.confirm('Enviar '+pending.length+' registo(s) profissionais previamente assinalados para o Google Calendar de '+primaryGoogleEmail()+'?'))return;
+  setBusy(true);let ok=0,failed=0;
+  try{
+   for(const {key,record} of pending){
+    try{
+     const googleEventId=await upsertGoogle(ipAgendaGoogle(key,record));
+     setIPData(prev=>({...prev,[key]:prev[key].map(r=>r.id===record.id?{...r,googleEventId}:r)}));
+     ok++;
+    }catch(error){
+     failed++;
+     setGoogleWriteStatus('Erro ao enviar «'+ipAgendaGoogle(key,record).title+'»: '+error.message);
+     if(!googleConnected())break;
+    }
+   }
+   setGoogleWriteStatus(ok+' atividade(s) profissionais confirmada(s) no Google; '+failed+' falha(s).');
+   if(ok)await refreshGoogle(true);
+  }finally{setBusy(false);}
  }
  async function googleConnect(){
   setBusy(true);setGoogleError('');
@@ -782,6 +809,8 @@ function App(){
        {connected?<><div className="account">Conta principal: {account||'Por definir — escolhe uma conta autorizada'}</div>
         <p className="fineprint">Os eventos criados na Agenda RJP não são enviados por defeito sem a tua escolha. O destino é o calendário principal da conta acima.</p>
         <div className="setting-line"><span>Tarefas/compromissos por enviar</span><strong>{googlePending.length}</strong></div>
+        <div className="setting-line"><span>Atividades IP assinaladas por enviar</span><strong>{professionalGooglePending.length}</strong></div>
+        <button type="button" className="light-action stretch" disabled={busy||!professionalGooglePending.length||!googleConnected()} onClick={syncPendingProfessionalGoogle}><Cloud size={16}/> Reenviar {professionalGooglePending.length} atividade(s) IP pendente(s)</button>
         <button type="button" className="primary-action stretch" disabled={busy||googlePending.length===0||!googleConnected()} onClick={syncPendingGoogle}><Cloud size={16}/> Enviar {googlePending.length} compromisso(s) para o Google</button>
         <label className="toggle-line"><span><strong>Enviar automaticamente novos compromissos</strong><small>Pré-seleciona «Adicionar ao Google Calendar» nas novas tarefas e reuniões. Se a conta não estiver ligada, guarda localmente e permite enviar depois. Podes desmarcar antes de guardar. Não inclui notas ou módulos IP.</small></span>
           <input type="checkbox" checked={autoGoogleNew} onChange={e=>{const yes=e.target.checked;setAutoGoogleNew(yes);localStorage.setItem('agenda-rjp-google-auto-new',yes?'1':'0')}}/></label>
