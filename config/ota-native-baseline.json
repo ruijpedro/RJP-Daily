@@ -50,7 +50,7 @@
   "compatibilityAudit": {
     "from": "1.1.31",
     "through": "1.1.31",
-    "reason": "APK 1.1.31 compilada com sucesso no GitHub Actions run 45144697367 (commit e69553f) e instalação/funcionamento confirmados pelo utilizador em 2026-11-23. SHA native-widget verificado na árvore Git desse commit. Não assumir compatibilidade com APK 1.1.29, que contém widgets nativos diferentes."
+    "reason": "Fonte de referência do widget confirmada na árvore Git do commit c5e75b4 (mesmo SHA 3d5355f9). APK 1.1.31 instalada e validada pelo utilizador; manter bloqueio para APK 1.1.29."
   },
-  "nativeSourceCommit": "e69553fba2278014c8dd69bfa4a02f7ccef1c48d"
+  "nativeSourceCommit": "c5e75b44b72ddd697113e42e1b32ce2cc9808856"
 }
