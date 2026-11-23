@@ -13,10 +13,10 @@ test('Toyota CJ-02-UB disponível em novas instalações',()=>{
 test('migração v1 adiciona Toyota sem alterar viaturas, deslocações e preferência',()=>{
  const previous={...clone(),vehiclesCatalogVersion:1,vehicles:[{id:'own',plate:'AA-00-AA',brand:'Outra',active:true}],defaultVehiclePlate:'AA-00-AA',trips:[{id:'trip1',date:'2026-11-23',vehiclePlate:'AA-00-AA'}]};
  const migrated=normalizeIP(previous);
- assert.deepEqual(migrated.vehicles.map(v=>v.plate),['AA-00-AA','CJ-02-UB']);
+ assert.deepEqual(migrated.vehicles.map(v=>v.plate),['AA-00-AA','CM-32-DF','CM-28-AU','CM-53-DE']);
  assert.equal(migrated.defaultVehiclePlate,'CJ-02-UB');
  assert.equal(migrated.trips[0].vehiclePlate,'AA-00-AA');
- assert.equal(normalizeIP(migrated).vehicles.length,2);
+ assert.equal(normalizeIP(migrated).vehicles.length,4);
 });
 
 test('migração v2 altera apenas uma vez a matrícula por defeito',()=>{
@@ -25,4 +25,13 @@ test('migração v2 altera apenas uma vez a matrícula por defeito',()=>{
  assert.equal(migrated.defaultVehiclePlate,'CJ-02-UB');
  const userChoice=normalizeIP({...migrated,defaultVehiclePlate:'23-ZP-64'});
  assert.equal(userChoice.defaultVehiclePlate,'23-ZP-64');
+});
+
+test('migração v3 adiciona as três Dacia Duster sem alterar Toyota por defeito',()=>{
+ const previous={...clone(),vehiclesCatalogVersion:3,vehicles:[{id:'toyota',plate:'CJ-02-UB',brand:'Toyota',active:true}],defaultVehiclePlate:'CJ-02-UB',trips:[{id:'trip',date:'2026-11-23',vehiclePlate:'CJ-02-UB'}]};
+ const migrated=normalizeIP(previous);
+ assert.deepEqual(migrated.vehicles.map(v=>v.plate),['CJ-02-UB','CM-32-DF','CM-28-AU','CM-53-DE']);
+ assert.equal(migrated.defaultVehiclePlate,'CJ-02-UB');
+ assert.equal(migrated.trips[0].vehiclePlate,'CJ-02-UB');
+ assert.equal(normalizeIP(migrated).vehicles.length,4);
 });
