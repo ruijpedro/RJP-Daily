@@ -12,8 +12,8 @@ export const defaults={
   ],
   places:['Caldas da Rainha','Leiria','Marinha Grande','São Martinho do Porto','Óbidos','Bombarral','Torres Vedras','Mafra','Sabugo','Coimbra','Entroncamento','Guarda'],
   activityTypes:['Inspeção de edifício','Inspeção AMV','Visita de obra','Reunião','Formação','Levantamento','Trabalho administrativo','Outro'],
-  defaultVehiclePlate:'03-ZQ-46',
-  vehiclesCatalogVersion:2,
+  defaultVehiclePlate:'CJ-02-UB',
+  vehiclesCatalogVersion:3,
   trips:[],guards:[],activities:[]
 };
 export const localDay=(value=new Date())=>{const d=new Date(value);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -27,9 +27,9 @@ export function normalizeIP(raw){
   // Na primeira abertura após atualização, repõe apenas as viaturas históricas em falta.
   // Depois dessa migração, remoções/edições voluntárias continuam respeitadas.
   vehicles:completeVehicleCatalog(raw,base),
-  vehiclesCatalogVersion:2,
+  vehiclesCatalogVersion:3,
   // Guardar a preferência sem apagar matrículas de deslocações antigas.
-  defaultVehiclePlate:typeof raw.defaultVehiclePlate==='string'?raw.defaultVehiclePlate:base.defaultVehiclePlate,
+  defaultVehiclePlate:Number(raw.vehiclesCatalogVersion)<3?'CJ-02-UB':(typeof raw.defaultVehiclePlate==='string'?raw.defaultVehiclePlate:base.defaultVehiclePlate),
   places:Array.isArray(raw.places)?raw.places.filter(x=>typeof x==='string'):base.places,
   activityTypes:Array.isArray(raw.activityTypes)?raw.activityTypes.filter(x=>typeof x==='string'):base.activityTypes,
   trips:Array.isArray(raw.trips)?raw.trips.filter(x=>x&&typeof x.date==='string').map(x=>({...x,id:x.id||newId()})):[],
