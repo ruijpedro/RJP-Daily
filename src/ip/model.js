@@ -43,24 +43,18 @@ export function normalizeIP(raw){
 export const vehicleKey=(plate)=>String(plate||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 /** Migração incremental: preserva viaturas e preferências existentes, adiciona as novas matrículas sem duplicar. */
 export function completeVehicleCatalog(raw,base=clone()){
- const vehicles=(Array.isArray(raw?.vehicles)?raw.vehicles.filter(x=>x?.plate).map(x=>({...x,id:x.id||newId()})):base.vehicles).filter(v=>Number(raw?.vehiclesCatalogVersion)>=5||vehicleKey(v.plate)!=='03ZQ46');
- if(Number(raw?.vehiclesCatalogVersion)>=4)return vehicles;
- if(Number(raw?.vehiclesCatalogVersion)>=2){
-  const result=[...vehicles];
-  const known=new Set(result.map(v=>vehicleKey(v.plate)));
-  for(const plate of ['CM-32-DF','CM-28-AU','CM-53-DE']){
-   const candidate=base.vehicles.find(v=>v.plate===plate);
-   if(candidate&&!known.has(vehicleKey(plate))){result.push({...candidate});known.add(vehicleKey(plate));}
-  }
-  return result;
+ const version=Number(raw?.vehiclesCatalogVersion)||0;
+ const stored=Array.isArray(raw?.vehicles)?raw.vehicles.filter(v=>v?.plate).map(v=>({...v,id:v.id||newId()})):base.vehicles;
+ // Remove a viatura ZQ apenas na migração para v5, nunca altera o histórico.
+ const result=stored.filter(v=>vehicleKey(v.plate)!=='03ZQ46');
+ if(version>=5)return result;
+ const known=new Set(result.map(v=>vehicleKey(v.plate)));
+ // Os catálogos antigos recebem todas as viaturas ainda válidas sem duplicação.
+ const additions=version<2?base.vehicles:version<4?base.vehicles.filter(v=>['CM32DF','CM28AU','CM53DE'].includes(vehicleKey(v.plate))):[];
+ for(const v of additions){
+  const key=vehicleKey(v.plate);
+  if(!known.has(key)){result.push({...v});known.add(key);}
  }
- if(Number(raw?.vehiclesCatalogVersion)===1){
-  if(vehicles.some(v=>vehicleKey(v.plate)==='CJ02UB'))return vehicles;
-  return [...vehicles,{...base.vehicles.find(v=>vehicleKey(v.plate)==='CJ02UB')}];
- }
- const result=[...vehicles];
- const known=new Set(vehicles.map(v=>vehicleKey(v.plate)));
- for(const v of base.vehicles){if(!known.has(vehicleKey(v.plate))){result.push({...v});known.add(vehicleKey(v.plate));}}
  return result;
 }
 export function getDefaultVehiclePlate(data){
