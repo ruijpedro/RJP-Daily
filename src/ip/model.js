@@ -8,12 +8,15 @@ export const defaults={
    {id:'v-03-zq-46',plate:'03-ZQ-46',brand:'Fiat',model:'',color:'Branco',type:'Viatura de serviço',active:true,favorite:true},
    {id:'v-23-zp-64',plate:'23-ZP-64',brand:'Renault',model:'Kangoo',color:'Branco',type:'Viatura de serviço',active:true,favorite:true},
    {id:'v-87-hn-72',plate:'87-HN-72',brand:'Mitsubishi',model:'L200 DI-D',color:'Branco',type:'Pick-up de serviço',active:true,favorite:true},
-   {id:'v-cj-02-ub',plate:'CJ-02-UB',brand:'Toyota',model:'',color:'Branco',type:'Viatura de serviço',active:true,favorite:false}
+   {id:'v-cj-02-ub',plate:'CJ-02-UB',brand:'Toyota',model:'',color:'Branco',type:'Viatura de serviço',active:true,favorite:false},
+   {id:'v-cm-32-df',plate:'CM-32-DF',brand:'Dacia',model:'Duster',color:'Branco',type:'Viatura de serviço',active:true,favorite:false},
+   {id:'v-cm-28-au',plate:'CM-28-AU',brand:'Dacia',model:'Duster',color:'Branco',type:'Viatura de serviço',active:true,favorite:false},
+   {id:'v-cm-53-de',plate:'CM-53-DE',brand:'Dacia',model:'Duster',color:'Branco',type:'Viatura de serviço',active:true,favorite:false}
   ],
   places:['Caldas da Rainha','Leiria','Marinha Grande','São Martinho do Porto','Óbidos','Bombarral','Torres Vedras','Mafra','Sabugo','Coimbra','Entroncamento','Guarda'],
   activityTypes:['Inspeção de edifício','Inspeção AMV','Visita de obra','Reunião','Formação','Levantamento','Trabalho administrativo','Outro'],
   defaultVehiclePlate:'CJ-02-UB',
-  vehiclesCatalogVersion:3,
+  vehiclesCatalogVersion:4,
   trips:[],guards:[],activities:[]
 };
 export const localDay=(value=new Date())=>{const d=new Date(value);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -27,7 +30,7 @@ export function normalizeIP(raw){
   // Na primeira abertura após atualização, repõe apenas as viaturas históricas em falta.
   // Depois dessa migração, remoções/edições voluntárias continuam respeitadas.
   vehicles:completeVehicleCatalog(raw,base),
-  vehiclesCatalogVersion:3,
+  vehiclesCatalogVersion:4,
   // Guardar a preferência sem apagar matrículas de deslocações antigas.
   defaultVehiclePlate:Number(raw.vehiclesCatalogVersion)<3?'CJ-02-UB':(typeof raw.defaultVehiclePlate==='string'?raw.defaultVehiclePlate:base.defaultVehiclePlate),
   places:Array.isArray(raw.places)?raw.places.filter(x=>typeof x==='string'):base.places,
@@ -39,10 +42,19 @@ export function normalizeIP(raw){
 }
 
 export const vehicleKey=(plate)=>String(plate||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-/** Migração incremental: preserva viaturas e preferências existentes, adiciona apenas a nova matrícula Toyota. */
+/** Migração incremental: preserva viaturas e preferências existentes, adiciona as novas matrículas sem duplicar. */
 export function completeVehicleCatalog(raw,base=clone()){
  const vehicles=Array.isArray(raw?.vehicles)?raw.vehicles.filter(x=>x?.plate).map(x=>({...x,id:x.id||newId()})):base.vehicles;
- if(Number(raw?.vehiclesCatalogVersion)>=2)return vehicles;
+ if(Number(raw?.vehiclesCatalogVersion)>=4)return vehicles;
+ if(Number(raw?.vehiclesCatalogVersion)>=2){
+  const result=[...vehicles];
+  const known=new Set(result.map(v=>vehicleKey(v.plate)));
+  for(const plate of ['CM-32-DF','CM-28-AU','CM-53-DE']){
+   const candidate=base.vehicles.find(v=>v.plate===plate);
+   if(candidate&&!known.has(vehicleKey(plate))){result.push({...candidate});known.add(vehicleKey(plate));}
+  }
+  return result;
+ }
  if(Number(raw?.vehiclesCatalogVersion)===1){
   if(vehicles.some(v=>vehicleKey(v.plate)==='CJ02UB'))return vehicles;
   return [...vehicles,{...base.vehicles.find(v=>vehicleKey(v.plate)==='CJ02UB')}];
