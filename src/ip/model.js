@@ -44,14 +44,21 @@ export const vehicleKey=(plate)=>String(plate||'').toUpperCase().replace(/[^A-Z0
 /** Migração incremental: preserva viaturas e preferências existentes, adiciona as novas matrículas sem duplicar. */
 export function completeVehicleCatalog(raw,base=clone()){
  const version=Number(raw?.vehiclesCatalogVersion)||0;
- const stored=Array.isArray(raw?.vehicles)?raw.vehicles.filter(v=>v?.plate).map(v=>({...v,id:v.id||newId()})):base.vehicles;
- // Remove a viatura ZQ apenas na migração para v5, nunca altera o histórico.
- const result=stored.filter(v=>vehicleKey(v.plate)!=='03ZQ46');
- if(version>=5)return result;
+ const vehicles=(Array.isArray(raw?.vehicles)
+  ?raw.vehicles.filter(v=>v?.plate).map(v=>({...v,id:v.id||newId()}))
+  :base.vehicles.map(v=>({...v})))
+  // Remover a Fiat antiga apenas na migração, mantendo o histórico das deslocações.
+  .filter(v=>version>=5||vehicleKey(v.plate)!=='03ZQ46');
+ if(version>=5)return vehicles;
+ const result=[...vehicles];
  const known=new Set(result.map(v=>vehicleKey(v.plate)));
- // Os catálogos antigos recebem todas as viaturas ainda válidas sem duplicação.
- const additions=version<2?base.vehicles:version<4?base.vehicles.filter(v=>['CM32DF','CM28AU','CM53DE'].includes(vehicleKey(v.plate))):[];
- for(const v of additions){
+ // v0: catálogo original; v1: acrescentar Toyota e Dacias; v2/v3: Dacias;
+ // v4: apenas retirar a matrícula antiga. Nunca recriar carros removidos
+ // manualmente depois da última migração.
+ const missing=version<1?base.vehicles:
+  version<2?base.vehicles.filter(v=>['CJ02UB','CM32DF','CM28AU','CM53DE'].includes(vehicleKey(v.plate))):
+  version<4?base.vehicles.filter(v=>['CM32DF','CM28AU','CM53DE'].includes(vehicleKey(v.plate))):[];
+ for(const v of missing){
   const key=vehicleKey(v.plate);
   if(!known.has(key)){result.push({...v});known.add(key);}
  }
