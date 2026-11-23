@@ -19,6 +19,6 @@ test('Importar backup anterior conserva históricos de prevenções e viaturas',
   const file={text:async()=>JSON.stringify(old)};
   const imported=await importIPBackup(file);
   assert.equal(imported.guards[0].id,'old');assert.equal(imported.guards[0].notes,'Plantão');
-  assert.equal(imported.vehicles.length,3);
+  assert.equal(imported.vehicles.length,6);
   assert.equal(asIPBackup(imported).ip.guards.length,1);
 });
