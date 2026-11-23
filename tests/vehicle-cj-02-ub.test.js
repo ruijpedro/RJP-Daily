@@ -13,10 +13,10 @@ test('Toyota CJ-02-UB disponível em novas instalações',()=>{
 test('migração v1 adiciona Toyota sem alterar viaturas, deslocações e preferência',()=>{
  const previous={...clone(),vehiclesCatalogVersion:1,vehicles:[{id:'own',plate:'AA-00-AA',brand:'Outra',active:true}],defaultVehiclePlate:'AA-00-AA',trips:[{id:'trip1',date:'2026-11-23',vehiclePlate:'AA-00-AA'}]};
  const migrated=normalizeIP(previous);
- assert.deepEqual(migrated.vehicles.map(v=>v.plate),['AA-00-AA','CM-32-DF','CM-28-AU','CM-53-DE']);
+ assert.deepEqual(migrated.vehicles.map(v=>v.plate),['AA-00-AA','CJ-02-UB','CM-32-DF','CM-28-AU','CM-53-DE']);
  assert.equal(migrated.defaultVehiclePlate,'CJ-02-UB');
  assert.equal(migrated.trips[0].vehiclePlate,'AA-00-AA');
- assert.equal(normalizeIP(migrated).vehicles.length,4);
+ assert.equal(normalizeIP(migrated).vehicles.length,5);
 });
 
 test('migração v2 altera apenas uma vez a matrícula por defeito',()=>{
